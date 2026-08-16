@@ -367,13 +367,13 @@ These features may be considered as future extensions if sufficient development 
 
 The project will be developed collaboratively. Each member will have a primary responsibility while also contributing to shared tasks such as testing, documentation, and code review.
 
-| Team Member    | Primary Role                            | Responsibilities                                                                                                                          |
-| -------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| **[zl]** | Project Coordinator / Backend Developer | Coordinate project progress, manage JIRA tasks, support Spring Boot development, and integrate project components.                        |
-| **[sn]** | Frontend Developer                      | Develop the React user interface, dashboard pages, navigation, and KPI visualisation.                                                     |
-| **[yh]** | Backend Developer                       | Develop Spring Boot REST APIs, business logic, authentication, and role-based access functionality.                                       |
-| **[hl]** | Database / Backend Developer            | Design the MySQL database, implement entity relationships, data persistence, and metric/alert data management.                            |
-| **[ak]** | Testing / Full-Stack Developer          | Develop test cases, perform functional and integration testing, support frontend/backend development, and maintain project documentation. |
+| Team Member        | Primary Role                            | Responsibilities                                                                                                                          |
+| -------------------| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **[Zhouguang Li]** | Project Coordinator / Backend Developer | Coordinate project progress, manage JIRA tasks, support Spring Boot development, and integrate project components.                        |
+| **[Bingyang Wu]**  | Frontend Developer                      | Develop the React user interface, dashboard pages, navigation, and KPI visualisation.                                                     |
+| **[Yixuan Huang]** | Backend Developer                       | Develop Spring Boot REST APIs, business logic, authentication, and role-based access functionality.                                       |
+| **[Zeheng Li]**    | Database / Backend Developer            | Design the MySQL database, implement entity relationships, data persistence, and metric/alert data management.                            |
+| **[Wentao Chen]**  | Testing / Full-Stack Developer          | Develop test cases, perform functional and integration testing, support frontend/backend development, and maintain project documentation. |
 
 Roles may be adjusted during later sprints depending on project requirements and team workload.
 

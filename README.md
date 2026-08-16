@@ -1,34 +1,50 @@
 # B2B System Health Dashboard
 
-## 1. Project Overview
+## 1 Project Overview
 
-The B2B System Health Dashboard is a full-stack web application designed to help small and medium-sized organisations monitor the health of their servers and software services from a central dashboard.
+The **B2B System Health Dashboard** is a full-stack web application designed to help small and medium-sized organisations monitor the health of their servers and software services through a centralised dashboard.
 
-The system collects basic operational metrics such as CPU usage, memory usage, response time, and service availability. These metrics are displayed through a simple dashboard so that users can quickly understand the current status of monitored systems.
+The system collects and displays basic operational metrics, including:
 
-The application also generates alerts when selected metrics exceed predefined thresholds. Role-based access will be provided for two main user groups: **Operations Staff** and **Management Users**. Operations staff will have access to detailed system information and alert management, while management users will mainly view high-level system health and KPI summaries.
+- CPU usage
+- Memory usage
+- Response time
+- Service availability
 
-The project aims to provide a simple, practical, and easy-to-use monitoring solution without introducing unnecessary infrastructure or highly complex monitoring technologies.
+These metrics are presented through a simple dashboard, allowing users to quickly understand the current status and performance of monitored systems.
 
+The application also generates alerts when selected metrics exceed predefined thresholds.
 
-## 2. Problem Statement
+Role-based access control is provided for two main user groups:
 
-Businesses increasingly depend on servers and online services for their daily operations. When a server becomes overloaded, a service becomes unavailable, or response time increases significantly, the problem may affect employees or customers.
+- **Operations Staff** — access detailed system information, manage monitored systems, and handle alerts.
+- **Management Users** — view high-level system health information, KPI summaries, and alert summaries.
 
-In small or medium-sized organisations, system information may be distributed across different tools or checked manually. This can make it difficult for operations staff to identify problems quickly. At the same time, managers usually do not need detailed technical information but still need a clear overview of overall system health.
+The project aims to provide a **simple, practical, and easy-to-use monitoring solution** without introducing unnecessary infrastructure or highly complex monitoring technologies.
+
+---
+
+## 2 Problem Statement
+
+Businesses increasingly depend on servers and online services for their daily operations. When a server becomes overloaded, a service becomes unavailable, or response time increases significantly, these problems may affect employees or customers.
+
+In small and medium-sized organisations, system information may be distributed across different tools or checked manually. This can make it difficult for operations staff to identify problems quickly.
+
+At the same time, management users generally do not require detailed technical information but still need a clear overview of overall system health.
 
 Therefore, there is a need for a centralised web application that can:
 
-* monitor important server and service metrics;
-* provide an easy-to-understand system health dashboard;
-* identify abnormal conditions through alerts;
-* store historical monitoring information; and
-* provide different levels of access for technical staff and management.
+- Monitor important server and service metrics
+- Provide an easy-to-understand system health dashboard
+- Identify abnormal conditions through alerts
+- Store historical monitoring information
+- Provide different levels of access for technical staff and management
 
-The B2B System Health Dashboard addresses this problem by presenting important monitoring information in one web-based system.
+The **B2B System Health Dashboard** addresses these needs by presenting important monitoring information within a single web-based system.
 
+---
 
-## 3. Project Goals
+## 3 Project Goals
 
 The main goals of the project are to:
 
@@ -39,8 +55,9 @@ The main goals of the project are to:
 5. Provide different system permissions for Operations Staff and Management Users.
 6. Build a complete and maintainable full-stack web application using modern application frameworks.
 
+---
 
-## 4. Target Users
+## 4 Target Users
 
 ### 4.1 Operations Staff
 
@@ -48,29 +65,30 @@ Operations Staff are responsible for monitoring and maintaining servers and serv
 
 They should be able to:
 
-* log in to the system;
-* view all monitored servers and services;
-* view detailed system metrics;
-* view current and historical alerts;
-* add or update monitored systems;
-* acknowledge or resolve alerts.
+- Log in to the system
+- View all monitored servers and services
+- View detailed system metrics
+- View current and historical alerts
+- Add or update monitored systems
+- Acknowledge or resolve alerts
 
 ### 4.2 Management Users
 
-Management Users mainly need an overview of business system health rather than detailed technical information.
+Management Users primarily require an overview of business system health rather than detailed technical information.
 
 They should be able to:
 
-* log in to the system;
-* view the main dashboard;
-* view high-level KPIs;
-* view overall server and service status;
-* view alert summaries.
+- Log in to the system
+- View the main dashboard
+- View high-level KPIs
+- View overall server and service status
+- View alert summaries
 
 Management Users will have more limited permissions than Operations Staff.
 
+---
 
-## 5. Key Functional Requirements
+## 5 Key Functional Requirements
 
 ### 5.1 User Authentication
 
@@ -80,9 +98,8 @@ Each user account will contain a role that determines which features the user is
 
 The initial system will support two roles:
 
-* **Operations**
-* **Management**
-
+- **Operations**
+- **Management**
 
 ### 5.2 Role-Based Access Control
 
@@ -94,21 +111,19 @@ The application will provide different access permissions depending on the user'
 
 This prevents users from accessing functions that are not relevant to their responsibilities.
 
-
 ### 5.3 Server and Service Management
 
 Operations users will be able to maintain a list of monitored servers and services.
 
-Each monitored item may include basic information such as:
+Each monitored item may include:
 
-* system/service name;
-* type;
-* host or identifier;
-* current status;
-* description.
+- System or service name
+- Type
+- Host or identifier
+- Current status
+- Description
 
 The first version of the project will focus on a small number of monitored systems to keep implementation manageable.
-
 
 ### 5.4 Metrics Monitoring
 
@@ -116,46 +131,47 @@ The system will store and display several basic health metrics.
 
 The initial metrics will include:
 
-* **CPU Usage (%)**
-* **Memory Usage (%)**
-* **Response Time (ms)**
-* **Availability Status**
+| Metric        | Unit / Value |
+| ------------- | ------------ |
+| CPU Usage     | %            |
+| Memory Usage  | %            |
+| Response Time | ms           |
+| Availability  | Status       |
 
-Metric records will contain a timestamp so that users can review historical system performance.
+Metric records will contain timestamps so that users can review historical system performance.
 
 For the prototype, monitoring data may be generated or periodically submitted to the backend rather than requiring the development of a complex external monitoring agent.
 
-
 ### 5.5 KPI Dashboard
 
-The main dashboard will provide an overview of system health.
+The main dashboard will provide an overview of overall system health.
 
 The dashboard may display:
 
-* total number of monitored systems;
-* number of healthy systems;
-* number of systems with warnings or critical status;
-* number of active alerts;
-* average CPU usage;
-* average memory usage;
-* average response time.
+- Total number of monitored systems
+- Number of healthy systems
+- Number of systems with warnings or critical status
+- Number of active alerts
+- Average CPU usage
+- Average memory usage
+- Average response time
 
 Simple charts will be used to display recent metric trends.
 
-
 ### 5.6 System Health Status
 
-Each monitored server or service will have a health status such as:
+Each monitored server or service will have one of the following health statuses:
 
-* **Healthy**
-* **Warning**
-* **Critical**
-* **Offline**
+| Status       | Description                                          |
+| ------------ | ---------------------------------------------------- |
+| **Healthy**  | System is operating normally                         |
+| **Warning**  | One or more metrics have exceeded warning thresholds |
+| **Critical** | One or more metrics have reached critical levels     |
+| **Offline**  | System or service is unavailable                     |
 
-The status will be determined using simple predefined thresholds based on the latest monitoring data.
+The status will be determined using predefined thresholds based on the latest monitoring data.
 
-For example, a high CPU or memory value may change the status from Healthy to Warning or Critical.
-
+For example, high CPU or memory usage may change a system's status from **Healthy** to **Warning** or **Critical**.
 
 ### 5.7 Alert Management
 
@@ -163,17 +179,18 @@ The system will automatically generate an alert when a monitored metric exceeds 
 
 An alert will contain information such as:
 
-* affected server or service;
-* alert type;
-* severity;
-* alert message;
-* creation time;
-* current status.
+- Affected server or service
+- Alert type
+- Severity
+- Alert message
+- Creation time
+- Current status
 
 Operations users will be able to view and update the status of alerts.
 
-For the first version, alerts will be displayed within the web application. External SMS, email, or third-party notification integration is outside the initial project scope.
+For the first version, alerts will be displayed within the web application.
 
+External SMS, email, and third-party notification integrations are outside the initial project scope.
 
 ### 5.8 Historical Data
 
@@ -181,10 +198,11 @@ The system will store historical metric and alert records in the database.
 
 Users will be able to view recent metric history for a selected server or service.
 
-This allows users to understand whether a problem is temporary or part of a longer trend.
+This allows users to determine whether a problem is temporary or part of a longer-term trend.
 
+---
 
-## 6. Main Use Cases
+## 6 Main Use Cases
 
 ### Operations Staff
 
@@ -201,189 +219,216 @@ This allows users to understand whether a problem is temporary or part of a long
 
 1. Log in to the system.
 2. View high-level system health KPIs.
-3. View overall server/service status.
+3. View overall server and service status.
 4. View alert summaries.
 5. Review recent system health trends.
 
+---
 
-## 7. Proposed Technology Stack
+## 7 Proposed Technology Stack
 
-### Frontend
+| Layer              | Technology      | Purpose                                                      |
+| ------------------ | --------------- | ------------------------------------------------------------ |
+| Frontend           | **React**       | Dashboard, system list, alert pages, navigation, and charts  |
+| Backend            | **Spring Boot** | REST APIs, authentication, business logic, and data processing |
+| Database           | **MySQL**       | Persistent storage for users, systems, metrics, and alerts   |
+| Version Control    | **GitHub**      | Source code management and team collaboration                |
+| Project Management | **JIRA**        | Product backlog, sprint tasks, responsibilities, and project progress |
 
-**React**
+### Frontend — React
 
-React will be used to build the web interface, including the dashboard, system list, alert pages, and charts.
+React will be used to build the web interface, including:
 
-### Backend
+- Dashboard
+- System list
+- Alert pages
+- Charts and KPI visualisations
 
-**Spring Boot**
+### Backend — Spring Boot
 
 Spring Boot will provide REST APIs for:
 
-* user authentication;
-* server/service management;
-* metric management;
-* dashboard information;
-* alert management.
+- User authentication
+- Server and service management
+- Metric management
+- Dashboard information
+- Alert management
 
-### Database
-
-**MySQL**
+### Database — MySQL
 
 MySQL will store persistent application data, including:
 
-* users;
-* servers and services;
-* metric records;
-* alerts.
+- Users
+- Servers and services
+- Metric records
+- Alerts
 
-### Version Control
+---
 
-**GitHub**
-
-GitHub will be used for source code management and team collaboration.
-
-### Project Management
-
-**JIRA**
-
-JIRA will be used to manage the product backlog, sprint tasks, responsibilities, and project progress.
-
-
-## 8. High-Level System Architecture
+## 8 High-Level System Architecture
 
 The proposed system follows a simple three-layer full-stack architecture:
 
 ```text
-Users
-  |
-  v
-React Frontend
-  |
-  | REST API
-  v
-Spring Boot Backend
-  |
-  v
-MySQL Database
+┌─────────────────────┐
+│        Users         │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│    React Frontend    │
+│      Dashboard       │
+└──────────┬──────────┘
+           │
+           │ REST API
+           ▼
+┌─────────────────────┐
+│ Spring Boot Backend  │
+│   Business Logic     │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│   MySQL Database     │
+└─────────────────────┘
 ```
 
 Monitoring data will be stored through the Spring Boot backend and retrieved by the React frontend for dashboard visualisation.
 
-This architecture keeps the application simple enough for the project while clearly separating the presentation, business logic, and data layers.
+This architecture keeps the application simple enough for the project while clearly separating:
 
+- **Presentation layer** — React
+- **Business logic layer** — Spring Boot
+- **Data layer** — MySQL
 
-## 9. Initial Data Model
+---
+
+## 9 Initial Data Model
 
 The application is expected to contain four main entities.
 
-### User
+### 9.1 User
 
 Stores information about system users.
 
-Example attributes:
+| Attribute  | Description                    |
+| ---------- | ------------------------------ |
+| `userId`   | Unique identifier for the user |
+| `username` | User's login name              |
+| `password` | User authentication credential |
+| `role`     | User's system role             |
 
-* userId
-* username
-* password
-* role
+### 9.2 MonitoredSystem
 
-### MonitoredSystem
+Stores information about monitored servers or services.
 
-Stores information about servers or services.
+| Attribute     | Description                   |
+| ------------- | ----------------------------- |
+| `systemId`    | Unique identifier             |
+| `name`        | System or service name        |
+| `type`        | Type of monitored system      |
+| `host`        | Host address or identifier    |
+| `status`      | Current health status         |
+| `description` | Additional system information |
 
-Example attributes:
+### 9.3 Metric
 
-* systemId
-* name
-* type
-* host
-* status
-* description
+Stores monitoring information collected for a monitored system.
 
-### Metric
+| Attribute      | Description                           |
+| -------------- | ------------------------------------- |
+| `metricId`     | Unique metric record identifier       |
+| `systemId`     | Associated monitored system           |
+| `cpuUsage`     | CPU usage percentage                  |
+| `memoryUsage`  | Memory usage percentage               |
+| `responseTime` | Response time in milliseconds         |
+| `availability` | Availability status                   |
+| `timestamp`    | Time at which the metric was recorded |
 
-Stores monitoring information.
-
-Example attributes:
-
-* metricId
-* systemId
-* CPU usage
-* memory usage
-* response time
-* availability
-* timestamp
-
-### Alert
+### 9.4 Alert
 
 Stores alerts generated by abnormal metrics.
 
-Example attributes:
+| Attribute     | Description                 |
+| ------------- | --------------------------- |
+| `alertId`     | Unique alert identifier     |
+| `systemId`    | Associated monitored system |
+| `alertType`   | Type of alert               |
+| `severity`    | Alert severity              |
+| `message`     | Alert description           |
+| `status`      | Current alert status        |
+| `createdTime` | Alert creation time         |
 
-* alertId
-* systemId
-* alert type
-* severity
-* message
-* status
-* created time
+> The detailed database schema may be refined during later development sprints.
 
-The detailed database schema may be refined during later development sprints.
+---
 
-
-## 10. Project Scope
+## 10 Project Scope
 
 To ensure that the system can be realistically implemented within the semester, the first version will focus on the core monitoring workflow.
 
 ### In Scope
 
-* user login;
-* two user roles;
-* server/service management;
-* basic server/service metrics;
-* dashboard KPI visualisation;
-* simple historical metric charts;
-* threshold-based alerts;
-* alert status management;
-* persistent MySQL data storage.
+- User login
+- Two user roles
+- Server and service management
+- Basic server and service metrics
+- Dashboard KPI visualisation
+- Simple historical metric charts
+- Threshold-based alerts
+- Alert status management
+- Persistent MySQL data storage
 
-### Out of Scope for the Initial Version
+### Out of Scope
 
 The following features are not required for the initial implementation:
 
-* development of a complex monitoring agent installed on real production servers;
-* machine-learning-based anomaly detection;
-* SMS notifications;
-* email notifications;
-* integration with external monitoring platforms;
-* cloud infrastructure deployment automation;
-* advanced predictive analytics.
+- Complex monitoring agents installed on real production servers
+- Machine-learning-based anomaly detection
+- SMS notifications
+- Email notifications
+- Integration with external monitoring platforms
+- Cloud infrastructure deployment automation
+- Advanced predictive analytics
 
 These features may be considered as future extensions if sufficient development time remains.
 
+---
 
-## 11. Team Roles and Responsibilities
+## 11 Team Roles and Responsibilities
 
 The project will be developed collaboratively. Each member will have a primary responsibility while also contributing to shared tasks such as testing, documentation, and code review.
 
-| Team Member        | Primary Role                            | Responsibilities                                                                                                                          |
-| -------------------| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| **[Zhouguang Li]** | Project Coordinator / Backend Developer | Coordinate project progress, manage JIRA tasks, support Spring Boot development, and integrate project components.                        |
-| **[Bingyang Wu]**  | Frontend Developer                      | Develop the React user interface, dashboard pages, navigation, and KPI visualisation.                                                     |
-| **[Yixuan Huang]** | Backend Developer                       | Develop Spring Boot REST APIs, business logic, authentication, and role-based access functionality.                                       |
-| **[Zeheng Li]**    | Database / Backend Developer            | Design the MySQL database, implement entity relationships, data persistence, and metric/alert data management.                            |
-| **[Wentao Chen]**  | Testing / Full-Stack Developer          | Develop test cases, perform functional and integration testing, support frontend/backend development, and maintain project documentation. |
+| Team Member      | Primary Role                            | Responsibilities                                             |
+| ---------------- | --------------------------------------- | ------------------------------------------------------------ |
+| **Zhouguang Li** | Project Coordinator / Backend Developer | Coordinate project progress, manage JIRA tasks, support Spring Boot development, and integrate project components |
+| **Bingyang Wu**  | Frontend Developer                      | Develop the React user interface, dashboard pages, navigation, and KPI visualisation |
+| **Yixuan Huang** | Backend Developer                       | Develop Spring Boot REST APIs, business logic, authentication, and role-based access functionality |
+| **Zeheng Li**    | Database / Backend Developer            | Design the MySQL database, implement entity relationships, data persistence, and metric/alert data management |
+| **Wentao Chen**  | Testing / Full-Stack Developer          | Develop test cases, perform functional and integration testing, support frontend/backend development, and maintain project documentation |
 
 Roles may be adjusted during later sprints depending on project requirements and team workload.
 
+---
 
-## 12. Expected Outcome
+## 12 Expected Outcome
 
 By the end of the project, the team aims to deliver a functional full-stack web application that allows users to monitor server and service health through a central dashboard.
 
-The final application should demonstrate a complete workflow:
+The final application should demonstrate the complete workflow:
 
-**Monitor System → Store Metrics → Display KPIs → Detect Abnormal Conditions → Generate Alerts → Support Role-Based Users**
+```text
+Monitor System
+      ↓
+Store Metrics
+      ↓
+Display KPIs
+      ↓
+Detect Abnormal Conditions
+      ↓
+Generate Alerts
+      ↓
+Support Role-Based Users
+```
 
-The project will prioritise a reliable and functional implementation of these core features before considering additional advanced functionality.
+The project will prioritise a **reliable and functional implementation of the core features** before considering additional advanced functionality.

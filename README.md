@@ -271,25 +271,25 @@ The proposed system follows a simple three-layer full-stack architecture:
 
 ```text
 ┌─────────────────────┐
-│        Users         │
+│        Users        │
 └──────────┬──────────┘
            │
            ▼
 ┌─────────────────────┐
-│    React Frontend    │
-│      Dashboard       │
+│   React Frontend    │
+│     Dashboard       │
 └──────────┬──────────┘
            │
            │ REST API
            ▼
 ┌─────────────────────┐
-│ Spring Boot Backend  │
-│   Business Logic     │
+│ Spring Boot Backend │
+│   Business Logic    │
 └──────────┬──────────┘
            │
            ▼
 ┌─────────────────────┐
-│   MySQL Database     │
+│   MySQL Database    │
 └─────────────────────┘
 ```
 

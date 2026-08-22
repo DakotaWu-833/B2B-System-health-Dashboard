@@ -1,0 +1,27 @@
+# IDE and operating-system files
+.idea/
+.vscode/
+.vs/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Local scratch files
+tmp/
+.env
+
+# Frontend build and local environment
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+# Backend build and local environment
+backend/target/
+backend/.env
+backend/src/main/resources/application-local.yml
+
+# Logs and test output
+*.log
+coverage/

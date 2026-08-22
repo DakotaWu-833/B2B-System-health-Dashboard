@@ -432,3 +432,68 @@ Support Role-Based Users
 ```
 
 The project will prioritise a **reliable and functional implementation of the core features** before considering additional advanced functionality.
+
+---
+
+## 13 Development Quick Start
+
+### Prerequisites
+
+- Java 21
+- Maven is not required globally; the repository includes Maven Wrapper 3.9.11
+- Node.js 22.12+
+- pnpm 11.19+
+- MySQL 8.4, either installed locally or started with Docker Compose
+
+### 13.1 Start MySQL
+
+If Docker is available, copy `.env.example` to `.env` and run:
+
+```bash
+docker compose up -d mysql
+```
+
+Alternatively, create a local MySQL database and provide `DB_URL`, `DB_USERNAME` and `DB_PASSWORD` to Spring Boot.
+
+### 13.2 Start the backend
+
+```bash
+cd backend
+./mvnw spring-boot:run
+```
+
+On Windows PowerShell:
+
+```powershell
+cd backend
+.\mvnw.cmd spring-boot:run
+```
+
+The backend is available at `http://localhost:8080`. Check `GET /api/health` before starting feature development.
+
+### 13.3 Start the frontend
+
+```bash
+cd frontend
+pnpm install
+pnpm dev
+```
+
+The frontend is available at `http://localhost:5173` and proxies `/api` requests to Spring Boot during local development.
+
+## 14 Repository Structure
+
+```text
+.
+├── backend/                 Spring Boot REST API
+├── frontend/                React and Vite application
+├── docs/
+│   ├── api/                 Shared API contract
+│   ├── sprint-1/            Contribution and retrospective evidence
+│   └── use-cases/           UML diagram and use-case briefs
+├── docker-compose.yml       Local MySQL service
+├── CONTRIBUTING.md          Branch and pull-request workflow
+└── README.md
+```
+
+Feature work should be developed on Jira-linked branches and merged through reviewed pull requests. See [CONTRIBUTING.md](CONTRIBUTING.md).

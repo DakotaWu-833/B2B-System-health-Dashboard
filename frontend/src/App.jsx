@@ -1,0 +1,114 @@
+import { useCallback, useEffect, useState } from "react";
+
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
+
+function App() {
+  const [health, setHealth] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const checkBackend = useCallback(async (signal) => {
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/health`, { signal });
+
+      if (!response.ok) {
+        throw new Error(`Backend returned HTTP ${response.status}`);
+      }
+
+      const payload = await response.json();
+      setHealth(payload.data);
+    } catch (requestError) {
+      if (requestError.name !== "AbortError") {
+        setHealth(null);
+        setError("Backend is not reachable. Start Spring Boot and try again.");
+      }
+    } finally {
+      if (!signal?.aborted) {
+        setIsLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    checkBackend(controller.signal);
+    return () => controller.abort();
+  }, [checkBackend]);
+
+  const backendOnline = health?.status === "UP";
+
+  return (
+    <main className="app-shell">
+      <section className="hero" aria-labelledby="page-title">
+        <p className="eyebrow">ELEC5619 · Sprint 1 foundation</p>
+        <h1 id="page-title">B2B System Health Dashboard</h1>
+        <p className="hero-copy">
+          A shared React and Spring Boot foundation for the team&apos;s monitoring
+          dashboard. Feature work should be delivered through reviewed Jira branches.
+        </p>
+      </section>
+
+      <section className="connection-card" aria-live="polite">
+        <div>
+          <p className="card-label">Integration check</p>
+          <h2>Frontend → Backend</h2>
+        </div>
+
+        <span
+          className={`status-badge ${backendOnline ? "status-up" : "status-down"}`}
+        >
+          {isLoading ? "CHECKING" : backendOnline ? "CONNECTED" : "OFFLINE"}
+        </span>
+
+        {health && (
+          <dl className="health-details">
+            <div>
+              <dt>Service</dt>
+              <dd>{health.service}</dd>
+            </div>
+            <div>
+              <dt>Status</dt>
+              <dd>{health.status}</dd>
+            </div>
+            <div>
+              <dt>Checked</dt>
+              <dd>{new Date(health.timestamp).toLocaleString()}</dd>
+            </div>
+          </dl>
+        )}
+
+        {error && <p className="error-message">{error}</p>}
+
+        <button type="button" onClick={() => checkBackend()} disabled={isLoading}>
+          {isLoading ? "Checking…" : "Check again"}
+        </button>
+      </section>
+
+      <section className="next-steps" aria-labelledby="next-steps-title">
+        <h2 id="next-steps-title">Sprint 1 workstreams</h2>
+        <div className="workstream-grid">
+          <article>
+            <span>01</span>
+            <h3>Authentication</h3>
+            <p>Operations and Management login with backend-enforced access control.</p>
+          </article>
+          <article>
+            <span>02</span>
+            <h3>Monitoring data</h3>
+            <p>Persist systems, timestamped metrics and threshold-based health status.</p>
+          </article>
+          <article>
+            <span>03</span>
+            <h3>Dashboard</h3>
+            <p>Show KPI summaries, recent trends and active alerts from real APIs.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+export default App;

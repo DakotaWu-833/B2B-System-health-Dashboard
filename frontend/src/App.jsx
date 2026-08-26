@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-
+import Login from "./Login";
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 
 function App() {
+  const [currentUser, setCurrentUser] = useState(null);
   const [health, setHealth] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -39,9 +40,15 @@ function App() {
   }, [checkBackend]);
 
   const backendOnline = health?.status === "UP";
+  if (!currentUser) {
+    return <Login onLogin={setCurrentUser} />;
+  }
 
   return (
     <main className="app-shell">
+     <button type="button" onClick={() => setCurrentUser(null)}>
+       Logout
+     </button>
       <section className="hero" aria-labelledby="page-title">
         <p className="eyebrow">ELEC5619 · Sprint 1 foundation</p>
         <h1 id="page-title">B2B System Health Dashboard</h1>

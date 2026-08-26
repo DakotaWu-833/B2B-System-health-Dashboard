@@ -25,6 +25,16 @@ server:
 app:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  metrics:
+    stale-after: ${METRIC_STALE_AFTER:PT5M}
+  health:
+    thresholds:
+      cpu-warning: ${HEALTH_CPU_WARNING_THRESHOLD:75.0}
+      cpu-critical: ${HEALTH_CPU_CRITICAL_THRESHOLD:90.0}
+      memory-warning: ${HEALTH_MEMORY_WARNING_THRESHOLD:75.0}
+      memory-critical: ${HEALTH_MEMORY_CRITICAL_THRESHOLD:90.0}
+      response-time-warning: ${HEALTH_RESPONSE_TIME_WARNING_MS:500}
+      response-time-critical: ${HEALTH_RESPONSE_TIME_CRITICAL_MS:1000}
   auth:
     seed:
       enabled: ${AUTH_SEED_ENABLED:false}

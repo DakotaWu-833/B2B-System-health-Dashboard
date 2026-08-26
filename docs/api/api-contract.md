@@ -76,3 +76,17 @@ Errors use the common response envelope with `success` set to `false` and `data`
 - Alert status: `ACTIVE`, `ACKNOWLEDGED`, `RESOLVED`
 
 Document request bodies, response bodies and error cases in the relevant Jira issue before implementation.
+
+## Dashboard and system queries
+
+- `GET /api/dashboard/summary` returns `total`, `healthy`, `warning`, `critical`, and
+  `offline` counts. An empty database returns zero for every count.
+- `GET /api/systems` returns all monitored systems as a JSON array. An empty database
+  returns an empty array.
+- `GET /api/systems/{id}` returns system details, the latest metric, a metric data status
+  (`NO_DATA`, `FRESH`, or `STALE`), and human-readable threshold reasons.
+- `GET /api/systems/{id}/metrics` returns up to 100 readings ordered newest first.
+- System-specific endpoints return `404 Not Found` when the system does not exist.
+
+Metric data is stale when its timestamp is older than `app.metrics.stale-after`, which
+defaults to five minutes (`PT5M`).

@@ -23,6 +23,51 @@ The team should review this draft before feature development. All JSON APIs use 
 | `POST` | `/api/systems/{id}/metrics` | Operations | Submit a metric reading |
 | `GET` | `/api/alerts` | Operations, Management | Retrieve alerts |
 
+## Submit a metric reading
+
+`POST /api/systems/{id}/metrics` stores a timestamped metric and updates the monitored system's health status in the same database transaction. The backend assigns the timestamp when it receives the reading.
+
+### Request body
+
+```json
+{
+  "cpuUsage": 72.5,
+  "memoryUsage": 68.25,
+  "responseTime": 240,
+  "availability": true
+}
+```
+
+CPU and memory usage must be between `0` and `100`, response time must be non-negative, and all four fields are required.
+
+### Success response
+
+The endpoint returns `201 Created`.
+
+```json
+{
+  "success": true,
+  "data": {
+    "metricId": 42,
+    "systemId": 7,
+    "cpuUsage": 72.5,
+    "memoryUsage": 68.25,
+    "responseTime": 240,
+    "availability": true,
+    "timestamp": "2026-08-26T10:30:00Z",
+    "systemStatus": "HEALTHY"
+  },
+  "message": "Metric submitted successfully"
+}
+```
+
+### Error responses
+
+- `400 Bad Request` when a required field is missing or a metric is outside its valid range.
+- `404 Not Found` when the monitored system does not exist.
+
+Errors use the common response envelope with `success` set to `false` and `data` set to `null`.
+
 ## Shared enum values
 
 - Role: `OPERATIONS`, `MANAGEMENT`

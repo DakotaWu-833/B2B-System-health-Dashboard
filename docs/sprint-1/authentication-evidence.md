@@ -2,7 +2,7 @@
 
 ## Delivered scope
 
-- Persisted `users` table with a unique username, BCrypt password hash and role.
+- Reuse the database workstream's canonical `dashboard.user.User` model and `users` table, with a unique username, BCrypt password hash and role.
 - Database-backed Spring Security `UserDetailsService`.
 - Optional environment-controlled demo-user seed; disabled by default and never logs the password.
 - CSRF-protected server-side session endpoints for login, current user and logout.
@@ -14,7 +14,7 @@
 
 | Acceptance criterion | Implementation and automated evidence |
 | --- | --- |
-| Credentials are read from MySQL and a session/token contract is returned | `UserAccount`, `UserRepository`, `DatabaseUserDetailsService`, `AuthController`; repository, service and successful-login integration tests |
+| Credentials are read from MySQL and a session/token contract is returned | Shared `User`, `UserRepository`, `DatabaseUserDetailsService`, `AuthController`; repository, service and successful-login integration tests |
 | Passwords are not stored or logged in plain text | `BCryptPasswordEncoder`; `DemoUserSeederTests` verifies a BCrypt hash and the API integration test verifies password fields are absent |
 | Missing, malformed and invalid credentials return safe errors | `AuthExceptionHandler`; blank, malformed, incorrect-password and unknown-user integration tests |
 | Protected endpoints reject unauthenticated users | Spring Security default-deny route policy plus unauthenticated `/api/auth/me` integration test |

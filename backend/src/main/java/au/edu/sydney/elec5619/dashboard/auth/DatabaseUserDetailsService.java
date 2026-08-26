@@ -1,5 +1,6 @@
 package au.edu.sydney.elec5619.dashboard.auth;
 
+import au.edu.sydney.elec5619.dashboard.user.UserRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;

@@ -6,6 +6,9 @@ import static org.mockito.Mockito.when;
 
 import java.util.Optional;
 
+import au.edu.sydney.elec5619.dashboard.user.Role;
+import au.edu.sydney.elec5619.dashboard.user.User;
+import au.edu.sydney.elec5619.dashboard.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,9 +31,9 @@ class DatabaseUserDetailsServiceTests {
 
     @Test
     void loadsPersistedUserWithRoleAuthority() {
-        UserAccount userAccount = new UserAccount(
+        User user = new User(
                 "operations", "$2a$10$encoded-password", Role.OPERATIONS);
-        when(userRepository.findByUsername("operations")).thenReturn(Optional.of(userAccount));
+        when(userRepository.findByUsername("operations")).thenReturn(Optional.of(user));
 
         DashboardUserPrincipal principal = (DashboardUserPrincipal) userDetailsService
                 .loadUserByUsername("operations");

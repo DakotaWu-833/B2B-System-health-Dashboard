@@ -2,6 +2,9 @@ package au.edu.sydney.elec5619.dashboard.auth;
 
 import java.util.Locale;
 
+import au.edu.sydney.elec5619.dashboard.user.Role;
+import au.edu.sydney.elec5619.dashboard.user.User;
+import au.edu.sydney.elec5619.dashboard.user.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,13 +46,13 @@ public class DemoUserSeeder implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         validateConfiguration();
 
-        if (userRepository.findByUsername(username).isPresent()) {
+        if (userRepository.existsByUsername(username)) {
             LOGGER.info("Demo authentication user '{}' already exists", username);
             return;
         }
 
         Role role = parseRole();
-        userRepository.save(new UserAccount(username, passwordEncoder.encode(password), role));
+        userRepository.save(new User(username, passwordEncoder.encode(password), role));
         LOGGER.info("Created demo authentication user '{}' with role {}", username, role);
     }
 

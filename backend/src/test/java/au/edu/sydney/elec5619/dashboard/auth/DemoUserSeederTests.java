@@ -7,8 +7,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.Optional;
-
+import au.edu.sydney.elec5619.dashboard.user.Role;
+import au.edu.sydney.elec5619.dashboard.user.User;
+import au.edu.sydney.elec5619.dashboard.user.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -28,7 +29,7 @@ class DemoUserSeederTests {
 
     @Test
     void hashesPasswordBeforePersistingDemoUser() throws Exception {
-        when(userRepository.findByUsername("demo.operations")).thenReturn(Optional.empty());
+        when(userRepository.existsByUsername("demo.operations")).thenReturn(false);
         when(passwordEncoder.encode("local-password")).thenReturn("bcrypt-hash");
         DemoUserSeeder seeder = new DemoUserSeeder(
                 userRepository,
@@ -39,7 +40,7 @@ class DemoUserSeederTests {
 
         seeder.run(new DefaultApplicationArguments(new String[0]));
 
-        ArgumentCaptor<UserAccount> accountCaptor = ArgumentCaptor.forClass(UserAccount.class);
+        ArgumentCaptor<User> accountCaptor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(accountCaptor.capture());
         assertThat(accountCaptor.getValue().getUsername()).isEqualTo("demo.operations");
         assertThat(accountCaptor.getValue().getPasswordHash()).isEqualTo("bcrypt-hash");
@@ -49,8 +50,7 @@ class DemoUserSeederTests {
 
     @Test
     void doesNotOverwriteExistingUser() throws Exception {
-        UserAccount existingUser = new UserAccount("demo.operations", "existing-hash", Role.OPERATIONS);
-        when(userRepository.findByUsername("demo.operations")).thenReturn(Optional.of(existingUser));
+        when(userRepository.existsByUsername("demo.operations")).thenReturn(true);
         DemoUserSeeder seeder = new DemoUserSeeder(
                 userRepository,
                 passwordEncoder,

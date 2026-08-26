@@ -6,6 +6,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import au.edu.sydney.elec5619.dashboard.user.Role;
+import au.edu.sydney.elec5619.dashboard.user.User;
+import au.edu.sydney.elec5619.dashboard.user.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,7 +43,7 @@ class AuthFailureIntegrationTests {
     @BeforeEach
     void setUp() {
         userRepository.deleteAll();
-        userRepository.save(new UserAccount(
+        userRepository.save(new User(
                 USERNAME,
                 passwordEncoder.encode(PASSWORD),
                 Role.OPERATIONS));

@@ -3,6 +3,9 @@ package au.edu.sydney.elec5619.dashboard.auth;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import au.edu.sydney.elec5619.dashboard.user.Role;
+import au.edu.sydney.elec5619.dashboard.user.User;
+import au.edu.sydney.elec5619.dashboard.user.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -18,8 +21,8 @@ class UserRepositoryTests {
 
     @Test
     void persistsAndFindsUserByUsername() {
-        UserAccount savedUser = userRepository.saveAndFlush(
-                new UserAccount("operations", "bcrypt-hash", Role.OPERATIONS));
+        User savedUser = userRepository.saveAndFlush(
+                new User("operations", "bcrypt-hash", Role.OPERATIONS));
 
         assertThat(savedUser.getId()).isNotNull();
         assertThat(userRepository.findByUsername("operations"))
@@ -33,10 +36,10 @@ class UserRepositoryTests {
     @Test
     void rejectsDuplicateUsernames() {
         userRepository.saveAndFlush(
-                new UserAccount("management", "first-hash", Role.MANAGEMENT));
+                new User("management", "first-hash", Role.MANAGEMENT));
 
         assertThatThrownBy(() -> userRepository.saveAndFlush(
-                new UserAccount("management", "second-hash", Role.MANAGEMENT)))
+                new User("management", "second-hash", Role.MANAGEMENT)))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 }

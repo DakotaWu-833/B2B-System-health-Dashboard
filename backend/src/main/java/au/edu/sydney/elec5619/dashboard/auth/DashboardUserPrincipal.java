@@ -3,6 +3,8 @@ package au.edu.sydney.elec5619.dashboard.auth;
 import java.util.Collection;
 import java.util.List;
 
+import au.edu.sydney.elec5619.dashboard.user.Role;
+import au.edu.sydney.elec5619.dashboard.user.User;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -21,12 +23,12 @@ public class DashboardUserPrincipal implements UserDetails {
         this.role = role;
     }
 
-    public static DashboardUserPrincipal from(UserAccount userAccount) {
+    public static DashboardUserPrincipal from(User user) {
         return new DashboardUserPrincipal(
-                userAccount.getId(),
-                userAccount.getUsername(),
-                userAccount.getPasswordHash(),
-                userAccount.getRole());
+                user.getId(),
+                user.getUsername(),
+                user.getPasswordHash(),
+                user.getRole());
     }
 
     public Long getId() {

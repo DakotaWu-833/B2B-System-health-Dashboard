@@ -90,9 +90,18 @@ class AuthIntegrationTests {
     }
 
     private MockHttpSession loginSuccessfully() throws Exception {
+        MvcResult csrfResult = mockMvc.perform(get("/api/auth/csrf"))
+                .andExpect(status().isOk())
+                .andReturn();
+        MockHttpSession anonymousSession = (MockHttpSession) csrfResult.getRequest().getSession(false);
+        String csrfResponse = csrfResult.getResponse().getContentAsString();
+        String csrfToken = objectMapper.readTree(csrfResponse).at("/data/token").asText();
+        String csrfHeader = objectMapper.readTree(csrfResponse).at("/data/headerName").asText();
+
         String requestBody = objectMapper.writeValueAsString(new LoginRequest(USERNAME, PASSWORD));
         MvcResult result = mockMvc.perform(post("/api/auth/login")
-                        .with(csrf())
+                        .session(anonymousSession)
+                        .header(csrfHeader, csrfToken)
                         .contentType("application/json")
                         .content(requestBody))
                 .andExpect(status().isOk())

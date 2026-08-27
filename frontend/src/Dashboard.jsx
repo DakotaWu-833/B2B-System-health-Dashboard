@@ -13,101 +13,124 @@ function Dashboard() {
     critical: 0,
     offline: 0,
   });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("http://localhost:8080/api/dashboard/summary", {
-      credentials: "include",
-    })
-      .then((response) => response.json())
-      .then((result) => {
-        if (result.success) {
-          setSummary(result.data);
-        }
-      })
-      .catch((error) => {
-        console.error("Failed to load dashboard summary:", error);
-      });
+    async function loadDashboard() {
+      setIsLoading(true);
+      setError("");
 
-    fetch("http://localhost:8080/api/systems", {
-      credentials: "include",
-    })
-      .then((response) => response.json())
-      .then((result) => {
-        if (result.success) {
-          setSystems(result.data);
+      try {
+        const [summaryResponse, systemsResponse] = await Promise.all([
+          fetch("/api/dashboard/summary", {
+            credentials: "include",
+          }),
+          fetch("/api/systems", {
+            credentials: "include",
+          }),
+        ]);
+
+        if (!summaryResponse.ok || !systemsResponse.ok) {
+          throw new Error("Failed to load dashboard data.");
         }
-      })
-      .catch((error) => {
-        console.error("Failed to load systems:", error);
-      });
+
+        const summaryResult = await summaryResponse.json();
+        const systemsResult = await systemsResponse.json();
+
+        if (!summaryResult.success || !systemsResult.success) {
+          throw new Error("Backend returned an unsuccessful response.");
+        }
+
+        setSummary(summaryResult.data);
+        setSystems(systemsResult.data);
+      } catch (requestError) {
+        console.error("Failed to load dashboard:", requestError);
+        setError("Unable to load dashboard data. Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadDashboard();
   }, []);
 
 
   return (
     <section>
       <h1>System Health Dashboard</h1>
+      {isLoading && <p>Loading dashboard data...</p>}
 
-      <section>
-        <h2>Overview</h2>
-
-        <div>
-          <div>
-            <h3>Total Systems</h3>
-            <p>{summary.total}</p>
-          </div>
-
-          <div>
-            <h3>Healthy</h3>
-            <p>{summary.healthy}</p>
-          </div>
+      {error && (
+        <p className="error-message" role="alert">
+          {error}
+        </p>
+      )}
+      {!isLoading && !error && (
+        <>
+          <section>
+            <h2>Overview</h2>
 
           <div>
-            <h3>Warning</h3>
-            <p>{summary.warning}</p>
+            <div>
+              <h3>Total Systems</h3>
+              <p>{summary.total}</p>
+            </div>
+
+            <div>
+              <h3>Healthy</h3>
+              <p>{summary.healthy}</p>
+            </div>
+
+            <div>
+              <h3>Warning</h3>
+              <p>{summary.warning}</p>
+            </div>
+
+            <div>
+              <h3>Critical</h3>
+              <p>{summary.critical}</p>
+            </div>
+            <div>
+              <h3>Offline</h3>
+              <p>{summary.offline}</p>
+            </div>
           </div>
+        </section>
 
-          <div>
-            <h3>Critical</h3>
-            <p>{summary.critical}</p>
-          </div>
-          <div>
-            <h3>Offline</h3>
-            <p>{summary.offline}</p>
-          </div>
-        </div>
-      </section>
+        <section>
+          <h2>Systems</h2>
 
-      <section>
-        <h2>Systems</h2>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Type</th>
-              <th>Host</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {systems.map((system) => (
-              <tr
-                key={system.id}
-                onClick={() => setSelectedSystem(system)}
-                style={{ cursor: "pointer" }}
-              >
-                <td>{system.name}</td>
-                <td>{system.type}</td>
-                <td>{system.host}</td>
-                <td>{system.status}</td>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Host</th>
+                <th>Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+            </thead>
 
-      <SystemDetails system={selectedSystem} />
+            <tbody>
+              {systems.map((system) => (
+                <tr
+                  key={system.id}
+                  onClick={() => setSelectedSystem(system)}
+                  style={{ cursor: "pointer" }}
+                >
+                  <td>{system.name}</td>
+                  <td>{system.type}</td>
+                  <td>{system.host}</td>
+                  <td>{system.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+
+        <SystemDetails system={selectedSystem} />
+        </>
+      )}
     </section>
   );
 }

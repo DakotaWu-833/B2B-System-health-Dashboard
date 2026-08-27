@@ -17,7 +17,7 @@ function Login({ onLogin }) {
     try {
     // 1. Get CSRF token
       const csrfResponse = await fetch(
-        "http://localhost:8080/api/auth/csrf",
+        "/api/auth/csrf",
         {
          credentials: "include",
         }
@@ -33,7 +33,7 @@ function Login({ onLogin }) {
 
     // 2. Login to Spring Boot
       const loginResponse = await fetch(
-        "http://localhost:8080/api/auth/login",
+        "/api/auth/login",
         {
           method: "POST",
           credentials: "include",

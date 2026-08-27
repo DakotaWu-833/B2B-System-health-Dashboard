@@ -9,6 +9,7 @@ function App() {
   const [health, setHealth] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [authLoading, setAuthLoading] = useState(true);
 
   const checkBackend = useCallback(async (signal) => {
     setIsLoading(true);
@@ -41,14 +42,73 @@ function App() {
     return () => controller.abort();
   }, [checkBackend]);
 
+  useEffect(() => {
+    fetch(`${apiBaseUrl}/api/auth/me`, {
+      credentials: "include",
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          return null;
+        }
+
+        const result = await response.json();
+        return result.success ? result.data : null;
+      })
+      .then((user) => {
+        setCurrentUser(user);
+      })
+      .catch((requestError) => {
+        console.error("Failed to restore session:", requestError);
+        setCurrentUser(null);
+      })
+      .finally(() => {
+        setAuthLoading(false);
+      });
+  }, []);
+
+  async function handleLogout() {
+    try {
+      const csrfResponse = await fetch(`${apiBaseUrl}/api/auth/csrf`, {
+        credentials: "include",
+      });
+
+      if (!csrfResponse.ok) {
+        throw new Error(`Failed to get CSRF token: HTTP ${csrfResponse.status}`);
+      }
+
+      const csrfResult = await csrfResponse.json();
+
+      const logoutResponse = await fetch(`${apiBaseUrl}/api/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "X-CSRF-TOKEN": csrfResult.data.token,
+        },
+      });
+
+      if (!logoutResponse.ok) {
+        throw new Error(`Logout failed with HTTP ${logoutResponse.status}`);
+      }
+
+      setCurrentUser(null);
+    } catch (requestError) {
+      console.error("Logout failed:", requestError);
+    }
+  }
+
   const backendOnline = health?.status === "UP";
+
+  if (authLoading) {
+    return <p>Checking session...</p>;
+  }
+
   if (!currentUser) {
     return <Login onLogin={setCurrentUser} />;
   }
 
   return (
     <main className="app-shell">
-     <button type="button" onClick={() => setCurrentUser(null)}>
+     <button type="button" onClick={handleLogout}>
        Logout
      </button>
       <section className="hero" aria-labelledby="page-title">

@@ -2,6 +2,7 @@ package au.edu.sydney.elec5619.dashboard.metric;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -16,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Transactional
+@WithMockUser(username = "metric-test-user", roles = "OPERATIONS")
 class MetricSubmissionIntegrationTests {
 
     @Autowired
@@ -40,6 +43,7 @@ class MetricSubmissionIntegrationTests {
         MonitoredSystem monitoredSystem = createSystem("Orders API");
 
         mockMvc.perform(post("/api/systems/{systemId}/metrics", monitoredSystem.getId())
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -73,6 +77,7 @@ class MetricSubmissionIntegrationTests {
         MonitoredSystem monitoredSystem = createSystem("Billing API");
 
         mockMvc.perform(post("/api/systems/{systemId}/metrics", monitoredSystem.getId())
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -100,6 +105,7 @@ class MetricSubmissionIntegrationTests {
         MonitoredSystem monitoredSystem = createSystem("Recovered API", HealthStatus.CRITICAL);
 
         mockMvc.perform(post("/api/systems/{systemId}/metrics", monitoredSystem.getId())
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -121,6 +127,7 @@ class MetricSubmissionIntegrationTests {
     @Test
     void returnsNotFoundWhenSubmittingMetricForUnknownSystem() throws Exception {
         mockMvc.perform(post("/api/systems/{systemId}/metrics", 999999L)
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {

@@ -15,6 +15,12 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax
+        secure: ${SESSION_COOKIE_SECURE:false}
 
 app:
   cors:
@@ -29,3 +35,9 @@ app:
       memory-critical: ${HEALTH_MEMORY_CRITICAL_THRESHOLD:90.0}
       response-time-warning: ${HEALTH_RESPONSE_TIME_WARNING_MS:500}
       response-time-critical: ${HEALTH_RESPONSE_TIME_CRITICAL_MS:1000}
+  auth:
+    seed:
+      enabled: ${AUTH_SEED_ENABLED:false}
+      username: ${AUTH_SEED_USERNAME:}
+      password: ${AUTH_SEED_PASSWORD:}
+      role: ${AUTH_SEED_ROLE:OPERATIONS}

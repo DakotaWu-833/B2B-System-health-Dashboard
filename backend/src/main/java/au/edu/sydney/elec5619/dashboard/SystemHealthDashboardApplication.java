@@ -2,8 +2,10 @@ package au.edu.sydney.elec5619.dashboard;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 
 @SpringBootApplication
+@ConfigurationPropertiesScan
 public class SystemHealthDashboardApplication {
 
     public static void main(String[] args) {

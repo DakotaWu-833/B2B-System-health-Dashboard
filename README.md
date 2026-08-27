@@ -173,6 +173,16 @@ The status will be determined using predefined thresholds based on the latest mo
 
 For example, high CPU or memory usage may change a system's status from **Healthy** to **Warning** or **Critical**.
 
+The initial status calculation uses the following default thresholds:
+
+| Metric | Warning | Critical |
+| --- | --- | --- |
+| CPU usage | `>= 75%` | `>= 90%` |
+| Memory usage | `>= 75%` | `>= 90%` |
+| Response time | `>= 500 ms` | `>= 1000 ms` |
+
+An unavailable system is always **Offline**. Otherwise, Critical takes precedence over Warning when multiple metrics have different severities. The defaults can be overridden with the health threshold environment variables defined in `application.yml`.
+
 ### 5.7 Alert Management
 
 The system will automatically generate an alert when a monitored metric exceeds a predefined threshold.

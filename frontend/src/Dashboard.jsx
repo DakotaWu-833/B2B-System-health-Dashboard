@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import SystemDetails from "./SystemDetails";
 
 const mockSystems = [
@@ -43,20 +43,29 @@ const mockSystems = [
 
 function Dashboard() {
   const [selectedSystem, setSelectedSystem] = useState(null);
+  const [summary, setSummary] = useState({
+    total: 0,
+    healthy: 0,
+    warning: 0,
+    critical: 0,
+    offline: 0,
+  });
 
-  const totalSystems = mockSystems.length;
+  useEffect(() => {
+    fetch("http://localhost:8080/api/dashboard/summary", {
+      credentials: "include",
+    })
+      .then((response) => response.json())
+      .then((result) => {
+        if (result.success) {
+          setSummary(result.data);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load dashboard summary:", error);
+      });
+  }, []);
 
-  const healthyCount = mockSystems.filter(
-    (system) => system.status === "HEALTHY"
-  ).length;
-
-  const warningCount = mockSystems.filter(
-    (system) => system.status === "WARNING"
-  ).length;
-
-  const criticalCount = mockSystems.filter(
-    (system) => system.status === "CRITICAL"
-  ).length;
 
   return (
     <section>
@@ -68,22 +77,26 @@ function Dashboard() {
         <div>
           <div>
             <h3>Total Systems</h3>
-            <p>{totalSystems}</p>
+            <p>{summary.total}</p>
           </div>
 
           <div>
             <h3>Healthy</h3>
-            <p>{healthyCount}</p>
+            <p>{summary.healthy}</p>
           </div>
 
           <div>
             <h3>Warning</h3>
-            <p>{warningCount}</p>
+            <p>{summary.warning}</p>
           </div>
 
           <div>
             <h3>Critical</h3>
-            <p>{criticalCount}</p>
+            <p>{summary.critical}</p>
+          </div>
+          <div>
+            <h3>Offline</h3>
+            <p>{summary.offline}</p>
           </div>
         </div>
       </section>

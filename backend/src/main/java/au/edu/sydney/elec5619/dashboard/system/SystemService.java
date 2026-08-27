@@ -79,7 +79,7 @@ public class SystemService {
             reasons.add("Latest metric data is stale");
         }
         if (!metric.isAvailable()) {
-            reasons.add("System is unavailable");
+            return List.of("System is unavailable");
         }
         if (metric.getCpuUsage().compareTo(thresholds.cpuCritical()) >= 0) {
             reasons.add("CPU usage reached the critical threshold");

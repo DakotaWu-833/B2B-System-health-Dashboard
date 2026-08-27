@@ -8,5 +8,6 @@ Update this table throughout the sprint. Jira issues and pull requests remain th
 | Bingyang Wu |  |  |  |  |
 | Yixuan Huang |  |  |  |  |
 | Zeheng Li |  |  |  |  |
-| Wentao Chen |  |  |  |  |
+| Wentao Chen | ELG2-12, ELG2-14 | UC2/UC3 Spring Boot read APIs: dashboard KPI summary, monitored-system list and details, recent metric history, stale/missing-data handling, threshold reasons, API documentation, and integration tests |  | 9 dashboard/system integration tests passed; full merged Java 21 backend suite: 42 tests passed, 0 failures, 0 errors |
+
 Detailed authentication evidence is recorded in [authentication-evidence.md](authentication-evidence.md).

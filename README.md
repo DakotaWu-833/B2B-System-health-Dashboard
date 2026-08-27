@@ -467,6 +467,17 @@ Alternatively, create a local MySQL database and provide `DB_URL`, `DB_USERNAME`
 
 ### 13.2 Start the backend
 
+For a local Sprint 1 login, provide a demo user's password through the environment. The application hashes the password with BCrypt before persisting it and does not replace an existing account:
+
+```powershell
+$env:AUTH_SEED_ENABLED="true"
+$env:AUTH_SEED_USERNAME="demo.operations"
+$env:AUTH_SEED_PASSWORD="choose-a-local-password"
+$env:AUTH_SEED_ROLE="OPERATIONS"
+```
+
+Do not commit a real password or add it to `application.yml`.
+
 ```bash
 cd backend
 ./mvnw spring-boot:run
@@ -479,7 +490,7 @@ cd backend
 .\mvnw.cmd spring-boot:run
 ```
 
-The backend is available at `http://localhost:8080`. Check `GET /api/health` before starting feature development.
+The backend is available at `http://localhost:8080`. Check `GET /api/health` before starting feature development. The authentication endpoint sequence and JSON contract are documented in [docs/api/api-contract.md](docs/api/api-contract.md).
 
 ### 13.3 Start the frontend
 

@@ -27,4 +27,10 @@ class SystemHealthDashboardApplicationTests {
                 .andExpect(jsonPath("$.success", equalTo(true)))
                 .andExpect(jsonPath("$.data.status", equalTo("UP")));
     }
+
+    @Test
+    void unauthenticatedRequestToProtectedEndpointReturnsUnauthorized() throws Exception {
+        mockMvc.perform(get("/api/auth/me"))
+            .andExpect(status().isUnauthorized());
+    }
 }

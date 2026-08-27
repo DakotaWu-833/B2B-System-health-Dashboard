@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface MonitoredSystemRepository extends JpaRepository<MonitoredSystem, Long> {
 
     List<MonitoredSystem> findByStatus(HealthStatus status);
+
+    long countByStatus(HealthStatus status);
 }

@@ -114,6 +114,20 @@ class DashboardAndSystemQueryIntegrationTests {
     }
 
     @Test
+    void returnsUnavailableReasonForOfflineSystem() throws Exception {
+        MonitoredSystem system = createSystem("Offline API", HealthStatus.OFFLINE);
+        createMetric(system, "20.00", "30.00", 100L, false, Instant.now());
+
+        mockMvc.perform(get("/api/systems/{id}", system.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("OFFLINE"))
+                .andExpect(jsonPath("$.data.latestMetric.availability").value(false))
+                .andExpect(jsonPath("$.data.metricDataStatus").value("FRESH"))
+                .andExpect(jsonPath("$.data.statusReasons[0]")
+                        .value("System is unavailable"));
+    }
+
+    @Test
     void returnsNotFoundForUnknownSystem() throws Exception {
         mockMvc.perform(get("/api/systems/{id}", 999999L))
                 .andExpect(status().isNotFound())

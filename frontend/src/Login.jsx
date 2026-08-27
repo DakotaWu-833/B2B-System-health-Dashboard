@@ -5,7 +5,7 @@ function Login({ onLogin }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
     setError("");
 
@@ -14,12 +14,52 @@ function Login({ onLogin }) {
       return;
     }
 
-    // Temporary mock login.
-    // Replace this with the real backend authentication API later.
-    if (username === "admin" && password === "admin123") {
-      onLogin(username);
-    } else {
-      setError("Invalid username or password.");
+    try {
+    // 1. Get CSRF token
+      const csrfResponse = await fetch(
+        "http://localhost:8080/api/auth/csrf",
+        {
+         credentials: "include",
+        }
+      );
+
+      const csrfResult = await csrfResponse.json();
+
+      if (!csrfResponse.ok || !csrfResult.success) {
+        throw new Error("Failed to get CSRF token.");
+      }
+
+      const token = csrfResult.data.token;
+
+    // 2. Login to Spring Boot
+      const loginResponse = await fetch(
+        "http://localhost:8080/api/auth/login",
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRF-TOKEN": token,
+          },
+          body: JSON.stringify({
+            username: username.trim(),
+            password,
+          }),
+        }
+      );
+
+      const loginResult = await loginResponse.json();
+
+      if (!loginResponse.ok || !loginResult.success) {
+        setError(loginResult.message || "Invalid username or password.");
+        return;
+      }
+
+    // 3. Tell App.jsx that login succeeded
+      onLogin(loginResult.data);
+    } catch (error) {
+      console.error("Login failed:", error);
+      setError("Unable to connect to the authentication service.");
     }
   }
 

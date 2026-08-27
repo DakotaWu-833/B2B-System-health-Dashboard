@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-<<<<<<< HEAD
 import Dashboard from "./Dashboard";
 
-=======
 import Login from "./Login";
->>>>>>> feature/login
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 
 function App() {

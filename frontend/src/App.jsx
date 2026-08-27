@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import Dashboard from "./Dashboard";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -87,26 +88,7 @@ function App() {
         </button>
       </section>
 
-      <section className="next-steps" aria-labelledby="next-steps-title">
-        <h2 id="next-steps-title">Sprint 1 workstreams</h2>
-        <div className="workstream-grid">
-          <article>
-            <span>01</span>
-            <h3>Authentication</h3>
-            <p>Operations and Management login with backend-enforced access control.</p>
-          </article>
-          <article>
-            <span>02</span>
-            <h3>Monitoring data</h3>
-            <p>Persist systems, timestamped metrics and threshold-based health status.</p>
-          </article>
-          <article>
-            <span>03</span>
-            <h3>Dashboard</h3>
-            <p>Show KPI summaries, recent trends and active alerts from real APIs.</p>
-          </article>
-        </div>
-      </section>
+      <Dashboard />
     </main>
   );
 }

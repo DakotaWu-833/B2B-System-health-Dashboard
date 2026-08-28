@@ -57,7 +57,7 @@ function Dashboard() {
 
 
   return (
-    <section>
+    <section className="dashboard">
       <h1>System Health Dashboard</h1>
       {isLoading && <p>Loading dashboard data...</p>}
 
@@ -71,64 +71,75 @@ function Dashboard() {
           <section>
             <h2>Overview</h2>
 
-          <div>
-            <div>
-              <h3>Total Systems</h3>
-              <p>{summary.total}</p>
+            <div className="overview-grid">
+              <div className="overview-card">
+                <h3>Total Systems</h3>
+                <p>{summary.total}</p>
+              </div>
+
+              <div className="overview-card">
+                <h3>Healthy</h3>
+                <p>{summary.healthy}</p>
+              </div>
+
+              <div className="overview-card">
+                <h3>Warning</h3>
+                <p>{summary.warning}</p>
+              </div>
+
+              <div className="overview-card">
+                <h3>Critical</h3>
+                <p>{summary.critical}</p>
+              </div>
+
+              <div className="overview-card">
+                <h3>Offline</h3>
+                <p>{summary.offline}</p>
+              </div>
             </div>
+          </section>
 
-            <div>
-              <h3>Healthy</h3>
-              <p>{summary.healthy}</p>
+          <section>
+            <h2>Systems</h2>
+            <div className="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Host</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+
+
+                <tbody>
+                  {systems.map((system) => (
+                    <tr
+                      key={system.id}
+                      onClick={() => setSelectedSystem(system)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          setSelectedSystem(system);
+                        }
+                      }}
+                      tabIndex={0}
+                      role="button"
+                      style={{ cursor: "pointer" }}
+                    >
+                      <td>{system.name}</td>
+                      <td>{system.type}</td>
+                      <td>{system.host}</td>
+                      <td>{system.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
+          </section>
 
-            <div>
-              <h3>Warning</h3>
-              <p>{summary.warning}</p>
-            </div>
-
-            <div>
-              <h3>Critical</h3>
-              <p>{summary.critical}</p>
-            </div>
-            <div>
-              <h3>Offline</h3>
-              <p>{summary.offline}</p>
-            </div>
-          </div>
-        </section>
-
-        <section>
-          <h2>Systems</h2>
-
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Type</th>
-                <th>Host</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {systems.map((system) => (
-                <tr
-                  key={system.id}
-                  onClick={() => setSelectedSystem(system)}
-                  style={{ cursor: "pointer" }}
-                >
-                  <td>{system.name}</td>
-                  <td>{system.type}</td>
-                  <td>{system.host}</td>
-                  <td>{system.status}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-
-        <SystemDetails system={selectedSystem} />
+          <SystemDetails system={selectedSystem} />
         </>
       )}
     </section>

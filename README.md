@@ -478,6 +478,22 @@ $env:AUTH_SEED_ROLE="OPERATIONS"
 
 Do not commit a real password or add it to `application.yml`.
 
+To populate a clean local database with three monitored systems, recent metric history and example alerts, enable the optional business data seeder before starting the backend:
+
+macOS or Linux:
+
+```bash
+export DEMO_DATA_SEED_ENABLED=true
+```
+
+Windows PowerShell:
+
+```powershell
+$env:DEMO_DATA_SEED_ENABLED="true"
+```
+
+The business data seeder is idempotent: it skips all changes when at least one monitored system already exists, so it does not overwrite or duplicate existing project data.
+
 ```bash
 cd backend
 ./mvnw spring-boot:run

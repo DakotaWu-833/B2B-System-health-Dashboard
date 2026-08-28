@@ -27,6 +27,8 @@ app:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   metrics:
     stale-after: ${METRIC_STALE_AFTER:PT5M}
+  demo-data:
+    enabled: ${DEMO_DATA_SEED_ENABLED:false}
   health:
     thresholds:
       cpu-warning: ${HEALTH_CPU_WARNING_THRESHOLD:75.0}

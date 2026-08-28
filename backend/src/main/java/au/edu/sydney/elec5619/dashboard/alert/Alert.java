@@ -111,4 +111,12 @@ public class Alert {
     public void changeStatus(AlertStatus status) {
         this.status = status;
     }
+
+    public void escalate(AlertSeverity severity, String message) {
+        if (this.severity == AlertSeverity.WARNING && severity == AlertSeverity.CRITICAL) {
+            this.severity = severity;
+            this.message = message;
+            this.status = AlertStatus.ACTIVE;
+        }
+    }
 }

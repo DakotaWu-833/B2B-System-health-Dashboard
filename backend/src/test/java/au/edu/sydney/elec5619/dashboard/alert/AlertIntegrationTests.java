@@ -3,6 +3,7 @@ package au.edu.sydney.elec5619.dashboard.alert;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.groups.Tuple.tuple;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -125,7 +126,7 @@ class AlertIntegrationTests {
                 "Response time reached the warning threshold",
                 AlertStatus.RESOLVED,
                 Instant.parse("2026-08-28T01:00:00Z")));
-        alertRepository.saveAndFlush(new Alert(
+        Alert directlyResolvedAlert = alertRepository.saveAndFlush(new Alert(
                 secondSystem,
                 "HIGH_MEMORY",
                 AlertSeverity.CRITICAL,
@@ -144,11 +145,49 @@ class AlertIntegrationTests {
                 .andExpect(jsonPath("$.data[0].alertType").value("HIGH_CPU"));
 
         mockMvc.perform(patch("/api/alerts/{alertId}/acknowledge", activeAlert.getId())
+                        .with(user("management-test-user").roles("MANAGEMENT"))
+                        .with(csrf()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Access denied"));
+
+        mockMvc.perform(patch("/api/alerts/{alertId}/resolve", directlyResolvedAlert.getId())
+                        .with(user("management-test-user").roles("MANAGEMENT"))
+                        .with(csrf()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Access denied"));
+
+        assertThat(alertRepository.findById(activeAlert.getId()))
+                .get()
+                .extracting(Alert::getStatus)
+                .isEqualTo(AlertStatus.ACTIVE);
+
+        mockMvc.perform(patch("/api/alerts/{alertId}/acknowledge", activeAlert.getId())
                         .with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("ACKNOWLEDGED"));
 
+        mockMvc.perform(patch("/api/alerts/{alertId}/acknowledge", activeAlert.getId())
+                        .with(csrf()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value(
+                        "Alert " + activeAlert.getId()
+                                + " cannot change from ACKNOWLEDGED to ACKNOWLEDGED"));
+
         mockMvc.perform(patch("/api/alerts/{alertId}/resolve", activeAlert.getId())
+                        .with(csrf()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("RESOLVED"));
+
+        mockMvc.perform(patch("/api/alerts/{alertId}/resolve", activeAlert.getId())
+                        .with(csrf()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value(
+                        "Alert " + activeAlert.getId()
+                                + " cannot change from RESOLVED to RESOLVED"));
+
+        mockMvc.perform(patch("/api/alerts/{alertId}/resolve", directlyResolvedAlert.getId())
                         .with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("RESOLVED"));

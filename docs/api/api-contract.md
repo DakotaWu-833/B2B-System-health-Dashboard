@@ -95,9 +95,10 @@ and becomes `ACTIVE` again.
 parameters can be used separately or together.
 
 `PATCH /api/alerts/{id}/acknowledge` changes an active alert to `ACKNOWLEDGED`.
-Acknowledging a resolved alert returns `409 Conflict`. `PATCH /api/alerts/{id}/resolve`
-changes an active or acknowledged alert to `RESOLVED`. An unknown alert ID returns
-`404 Not Found`.
+Only Operations users may call alert status mutation endpoints. Repeating an acknowledge,
+acknowledging a resolved alert, repeating a resolve, or making any other invalid status
+transition returns `409 Conflict`. `PATCH /api/alerts/{id}/resolve` changes an active or
+acknowledged alert to `RESOLVED`. An unknown alert ID returns `404 Not Found`.
 
 ## Authentication contract
 
@@ -181,7 +182,10 @@ Cookie: JSESSIONID=...
 X-CSRF-TOKEN: generated-token
 ```
 
-The server invalidates the session and clears the session cookie. Complete endpoint-specific RBAC is outside the Sprint 1 authentication scope; Sprint 1 stores the user role and enforces authenticated versus public access.
+The server invalidates the session and clears the session cookie. Sprint 1 stores the user
+role, enforces authenticated versus public access, and restricts alert status mutation
+endpoints to Operations users. Complete endpoint-specific RBAC for the remaining APIs is
+outside the Sprint 1 authentication scope.
 
 ## Dashboard and system queries
 

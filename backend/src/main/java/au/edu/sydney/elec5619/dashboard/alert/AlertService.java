@@ -86,7 +86,7 @@ public class AlertService {
     @Transactional
     public AlertResponse acknowledge(Long alertId) {
         Alert alert = getAlert(alertId);
-        if (alert.getStatus() == AlertStatus.RESOLVED) {
+        if (alert.getStatus() != AlertStatus.ACTIVE) {
             throw new InvalidAlertStatusTransitionException(
                     alertId,
                     alert.getStatus(),
@@ -99,6 +99,13 @@ public class AlertService {
     @Transactional
     public AlertResponse resolve(Long alertId) {
         Alert alert = getAlert(alertId);
+        if (alert.getStatus() != AlertStatus.ACTIVE
+                && alert.getStatus() != AlertStatus.ACKNOWLEDGED) {
+            throw new InvalidAlertStatusTransitionException(
+                    alertId,
+                    alert.getStatus(),
+                    AlertStatus.RESOLVED);
+        }
         alert.changeStatus(AlertStatus.RESOLVED);
         return AlertResponse.from(alert);
     }

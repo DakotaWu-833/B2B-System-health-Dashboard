@@ -5,6 +5,7 @@ import au.edu.sydney.elec5619.dashboard.auth.RestAccessDeniedHandler;
 import au.edu.sydney.elec5619.dashboard.auth.RestAuthenticationEntryPoint;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
@@ -60,6 +61,11 @@ public class SecurityConfig {
                                 "/api/auth/login",
                                 "/error")
                         .permitAll()
+                        .requestMatchers(
+                                HttpMethod.PATCH,
+                                "/api/alerts/*/acknowledge",
+                                "/api/alerts/*/resolve")
+                        .hasRole("OPERATIONS")
                         .anyRequest()
                         .authenticated())
                 .exceptionHandling(exceptions -> exceptions

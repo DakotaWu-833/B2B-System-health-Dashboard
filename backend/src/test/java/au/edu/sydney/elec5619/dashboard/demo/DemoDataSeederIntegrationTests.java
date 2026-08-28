@@ -16,7 +16,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
-@SpringBootTest(properties = "app.demo-data.enabled=true")
+@SpringBootTest(properties = {
+    "app.demo-data.enabled=true",
+    "spring.datasource.url=jdbc:h2:mem:demo-data-seeder;MODE=MySQL;DB_CLOSE_DELAY=-1"
+})
 @ActiveProfiles("test")
 class DemoDataSeederIntegrationTests {
 

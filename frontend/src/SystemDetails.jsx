@@ -3,43 +3,81 @@ import { useEffect, useState } from "react";
 function SystemDetails({ system }) {
   const [details, setDetails] = useState(null);
   const [metrics, setMetrics] = useState([]);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!system) {
       setDetails(null);
       setMetrics([]);
+      setError("");
       return;
     }
 
+    const controller = new AbortController();
+
+    setDetails(null);
+    setMetrics([]);
+    setError("");
+
     fetch(`/api/systems/${system.id}`, {
       credentials: "include",
+      signal: controller.signal,
     })
       .then((response) => response.json())
       .then((result) => {
         if (result.success) {
           setDetails(result.data);
+        } else {
+          setDetails(null);
+          setError(result.message || "Failed to load system details.");
         }
       })
       .catch((error) => {
-        console.error("Failed to load system details:", error);
+        if (error.name !== "AbortError") {
+          console.error("Failed to load system details:", error);
+          setDetails(null);
+          setError("Failed to load system details.");
+        }
       });
 
     fetch(`/api/systems/${system.id}/metrics`, {
       credentials: "include",
+      signal: controller.signal,
     })
       .then((response) => response.json())
       .then((result) => {
         if (result.success) {
           setMetrics(result.data);
+        } else {
+          setMetrics([]);
+          setError(result.message || "Failed to load system metrics.");
         }
       })
       .catch((error) => {
-        console.error("Failed to load system metrics:", error);
+        if (error.name !== "AbortError") {
+          console.error("Failed to load system metrics:", error);
+          setMetrics([]);
+          setError("Failed to load system metrics.");
+        }
       });
+    return () => {
+      controller.abort();
+    };
   }, [system]);
 
   if (!system) {
     return null;
+  }
+
+  if (error) {
+    return (
+      <section className="system-details">
+        <h2>System Details</h2>
+        <p className="error-message" role="alert">
+          {error}
+        </p>
+      </section>
+    );
   }
 
   if (!details) {

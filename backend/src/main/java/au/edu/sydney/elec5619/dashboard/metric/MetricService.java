@@ -2,6 +2,7 @@ package au.edu.sydney.elec5619.dashboard.metric;
 
 import java.time.Instant;
 
+import au.edu.sydney.elec5619.dashboard.alert.AlertService;
 import au.edu.sydney.elec5619.dashboard.system.HealthStatus;
 import au.edu.sydney.elec5619.dashboard.system.HealthStatusCalculator;
 import au.edu.sydney.elec5619.dashboard.system.MonitoredSystem;
@@ -19,14 +20,17 @@ public class MetricService {
     private final MetricRepository metricRepository;
     private final MonitoredSystemRepository monitoredSystemRepository;
     private final HealthStatusCalculator healthStatusCalculator;
+    private final AlertService alertService;
 
     public MetricService(
             MetricRepository metricRepository,
             MonitoredSystemRepository monitoredSystemRepository,
-            HealthStatusCalculator healthStatusCalculator) {
+            HealthStatusCalculator healthStatusCalculator,
+            AlertService alertService) {
         this.metricRepository = metricRepository;
         this.monitoredSystemRepository = monitoredSystemRepository;
         this.healthStatusCalculator = healthStatusCalculator;
+        this.alertService = alertService;
     }
 
     @Transactional
@@ -47,6 +51,7 @@ public class MetricService {
 
         Metric savedMetric = metricRepository.save(metric);
         monitoredSystemRepository.save(monitoredSystem);
+        alertService.recordAlertsForMetric(savedMetric);
 
         return MetricResponse.from(savedMetric, healthStatus);
     }

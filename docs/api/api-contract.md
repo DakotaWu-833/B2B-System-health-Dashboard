@@ -25,6 +25,8 @@ The team should review this draft before feature development. All JSON APIs use 
 | `GET` | `/api/systems/{id}/metrics` | Operations, Management | Retrieve recent metrics |
 | `POST` | `/api/systems/{id}/metrics` | Operations | Submit a metric reading |
 | `GET` | `/api/alerts` | Operations, Management | Retrieve alerts |
+| `PATCH` | `/api/alerts/{id}/acknowledge` | Operations | Acknowledge an active alert |
+| `PATCH` | `/api/alerts/{id}/resolve` | Operations | Resolve an active or acknowledged alert |
 
 ## Submit a metric reading
 
@@ -77,6 +79,25 @@ Errors use the common response envelope with `success` set to `false` and `data`
 - Health status: `HEALTHY`, `WARNING`, `CRITICAL`, `OFFLINE`
 - Alert severity: `WARNING`, `CRITICAL`
 - Alert status: `ACTIVE`, `ACKNOWLEDGED`, `RESOLVED`
+- Alert type: `HIGH_CPU`, `HIGH_MEMORY`, `SLOW_RESPONSE`, `SERVICE_UNAVAILABLE`
+
+## Alerts
+
+Submitting an abnormal metric automatically creates one alert for each exceeded metric
+threshold. An unavailable reading creates only a `SERVICE_UNAVAILABLE` alert. The metric,
+system status and any new alerts are persisted in the same transaction.
+
+An unresolved alert is not duplicated when later readings report the same condition. If
+an acknowledged warning becomes critical, the existing alert is upgraded to `CRITICAL`
+and becomes `ACTIVE` again.
+
+`GET /api/alerts` returns alerts newest first. Optional `status` and `systemId` query
+parameters can be used separately or together.
+
+`PATCH /api/alerts/{id}/acknowledge` changes an active alert to `ACKNOWLEDGED`.
+Acknowledging a resolved alert returns `409 Conflict`. `PATCH /api/alerts/{id}/resolve`
+changes an active or acknowledged alert to `RESOLVED`. An unknown alert ID returns
+`404 Not Found`.
 
 ## Authentication contract
 

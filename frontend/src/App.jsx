@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
+import Dashboard from "./Dashboard";
 
+import Login from "./Login";
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
 
 function App() {
+  const [currentUser, setCurrentUser] = useState(null);
   const [health, setHealth] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [authLoading, setAuthLoading] = useState(true);
 
   const checkBackend = useCallback(async (signal) => {
     setIsLoading(true);
@@ -38,10 +42,75 @@ function App() {
     return () => controller.abort();
   }, [checkBackend]);
 
+  useEffect(() => {
+    fetch(`${apiBaseUrl}/api/auth/me`, {
+      credentials: "include",
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          return null;
+        }
+
+        const result = await response.json();
+        return result.success ? result.data : null;
+      })
+      .then((user) => {
+        setCurrentUser(user);
+      })
+      .catch((requestError) => {
+        console.error("Failed to restore session:", requestError);
+        setCurrentUser(null);
+      })
+      .finally(() => {
+        setAuthLoading(false);
+      });
+  }, []);
+
+  async function handleLogout() {
+    try {
+      const csrfResponse = await fetch(`${apiBaseUrl}/api/auth/csrf`, {
+        credentials: "include",
+      });
+
+      if (!csrfResponse.ok) {
+        throw new Error(`Failed to get CSRF token: HTTP ${csrfResponse.status}`);
+      }
+
+      const csrfResult = await csrfResponse.json();
+
+      const logoutResponse = await fetch(`${apiBaseUrl}/api/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "X-CSRF-TOKEN": csrfResult.data.token,
+        },
+      });
+
+      if (!logoutResponse.ok) {
+        throw new Error(`Logout failed with HTTP ${logoutResponse.status}`);
+      }
+
+      setCurrentUser(null);
+    } catch (requestError) {
+      console.error("Logout failed:", requestError);
+    }
+  }
+
   const backendOnline = health?.status === "UP";
+
+  if (authLoading) {
+    return <p>Checking session...</p>;
+  }
+
+  if (!currentUser) {
+    return <Login onLogin={setCurrentUser} />;
+  }
 
   return (
     <main className="app-shell">
+     <button type="button" onClick={handleLogout}>
+       Logout
+     </button>
       <section className="hero" aria-labelledby="page-title">
         <p className="eyebrow">ELEC5619 · Sprint 1 foundation</p>
         <h1 id="page-title">B2B System Health Dashboard</h1>
@@ -87,26 +156,7 @@ function App() {
         </button>
       </section>
 
-      <section className="next-steps" aria-labelledby="next-steps-title">
-        <h2 id="next-steps-title">Sprint 1 workstreams</h2>
-        <div className="workstream-grid">
-          <article>
-            <span>01</span>
-            <h3>Authentication</h3>
-            <p>Operations and Management login with backend-enforced access control.</p>
-          </article>
-          <article>
-            <span>02</span>
-            <h3>Monitoring data</h3>
-            <p>Persist systems, timestamped metrics and threshold-based health status.</p>
-          </article>
-          <article>
-            <span>03</span>
-            <h3>Dashboard</h3>
-            <p>Show KPI summaries, recent trends and active alerts from real APIs.</p>
-          </article>
-        </div>
-      </section>
+      <Dashboard />
     </main>
   );
 }

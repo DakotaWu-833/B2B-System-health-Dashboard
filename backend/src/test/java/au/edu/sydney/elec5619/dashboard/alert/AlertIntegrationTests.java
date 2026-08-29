@@ -148,7 +148,7 @@ class AlertIntegrationTests {
                 "CPU usage reached the warning threshold",
                 AlertStatus.ACTIVE,
                 Instant.parse("2026-08-28T01:05:00Z")));
-        alertRepository.saveAndFlush(new Alert(
+        Alert resolvedAlert = alertRepository.saveAndFlush(new Alert(
                 firstSystem,
                 "SLOW_RESPONSE",
                 AlertSeverity.WARNING,
@@ -168,10 +168,52 @@ class AlertIntegrationTests {
                         .param("systemId", firstSystem.getId().toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.length()").value(1))
-                .andExpect(jsonPath("$.data[0].alertId").value(activeAlert.getId()))
-                .andExpect(jsonPath("$.data[0].systemName").value("Customer API"))
-                .andExpect(jsonPath("$.data[0].alertType").value("HIGH_CPU"));
+                .andExpect(jsonPath("$.data.items.length()").value(1))
+                .andExpect(jsonPath("$.data.items[0].alertId").value(activeAlert.getId()))
+                .andExpect(jsonPath("$.data.items[0].systemName").value("Customer API"))
+                .andExpect(jsonPath("$.data.items[0].alertType").value("HIGH_CPU"))
+                .andExpect(jsonPath("$.data.page").value(0))
+                .andExpect(jsonPath("$.data.size").value(20))
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.totalPages").value(1))
+                .andExpect(jsonPath("$.data.first").value(true))
+                .andExpect(jsonPath("$.data.last").value(true));
+
+        mockMvc.perform(get("/api/alerts")
+                        .param("page", "0")
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items.length()").value(2))
+                .andExpect(jsonPath("$.data.items[0].alertId")
+                        .value(directlyResolvedAlert.getId()))
+                .andExpect(jsonPath("$.data.items[1].alertId").value(activeAlert.getId()))
+                .andExpect(jsonPath("$.data.totalElements").value(3))
+                .andExpect(jsonPath("$.data.totalPages").value(2))
+                .andExpect(jsonPath("$.data.first").value(true))
+                .andExpect(jsonPath("$.data.last").value(false));
+
+        mockMvc.perform(get("/api/alerts")
+                        .param("page", "1")
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items.length()").value(1))
+                .andExpect(jsonPath("$.data.items[0].alertId").value(resolvedAlert.getId()))
+                .andExpect(jsonPath("$.data.page").value(1))
+                .andExpect(jsonPath("$.data.first").value(false))
+                .andExpect(jsonPath("$.data.last").value(true));
+
+        mockMvc.perform(get("/api/alerts").param("page", "-1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.data").doesNotExist())
+                .andExpect(jsonPath("$.message").value(
+                        "page must be greater than or equal to 0"));
+
+        mockMvc.perform(get("/api/alerts").param("size", "101"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.data").doesNotExist())
+                .andExpect(jsonPath("$.message").value("size must be between 1 and 100"));
 
         mockMvc.perform(get("/api/alerts").param("status", "NOT_A_STATUS"))
                 .andExpect(status().isBadRequest())

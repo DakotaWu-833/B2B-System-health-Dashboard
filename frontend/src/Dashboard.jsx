@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import SystemDetails from "./SystemDetails";
 import { apiFetch } from "./api";
 
@@ -15,49 +15,62 @@ function Dashboard({ onSessionExpired }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    async function loadDashboard() {
-      setIsLoading(true);
-      setError("");
+  const loadDashboard = useCallback(async () => {
+    setIsLoading(true);
+    setError("");
 
-      try {
-        const [summaryResponse, systemsResponse] = await Promise.all([
-          apiFetch("/api/dashboard/summary"),
-          apiFetch("/api/systems"),
-        ]);
+    try {
+      const [summaryResponse, systemsResponse] = await Promise.all([
+        apiFetch("/api/dashboard/summary"),
+        apiFetch("/api/systems"),
+      ]);
 
-        if (summaryResponse.status === 401 || systemsResponse.status === 401) {
-          onSessionExpired?.();
-          return;
-        }
-
-        if (!summaryResponse.ok || !systemsResponse.ok) {
-          throw new Error("Failed to load dashboard data.");
-        }
-
-        const summaryResult = await summaryResponse.json();
-        const systemsResult = await systemsResponse.json();
-
-        if (!summaryResult.success || !systemsResult.success) {
-          throw new Error("Backend returned an unsuccessful response.");
-        }
-
-        setSummary(summaryResult.data);
-        setSystems(systemsResult.data);
-      } catch (requestError) {
-        console.error("Failed to load dashboard:", requestError);
-        setError("Unable to load dashboard data. Please try again.");
-      } finally {
-        setIsLoading(false);
+      if (summaryResponse.status === 401 || systemsResponse.status === 401) {
+        onSessionExpired?.();
+        return;
       }
-    }
 
-    loadDashboard();
+      if (!summaryResponse.ok || !systemsResponse.ok) {
+        throw new Error("Failed to load dashboard data.");
+      }
+
+      const summaryResult = await summaryResponse.json();
+      const systemsResult = await systemsResponse.json();
+
+      if (!summaryResult.success || !systemsResult.success) {
+        throw new Error("Backend returned an unsuccessful response.");
+      }
+
+      setSummary(summaryResult.data);
+      setSystems(systemsResult.data);
+      setSelectedSystem((currentSystem) => {
+        if (!currentSystem) {
+          return null;
+        }
+        return systemsResult.data.find(
+          (system) => system.id === currentSystem.id
+        ) ?? null;
+      });
+    } catch (requestError) {
+      console.error("Failed to load dashboard:", requestError);
+      setError("Unable to load dashboard data. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   }, [onSessionExpired]);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
 
   return (
     <section className="dashboard">
-      <h1>System Health Dashboard</h1>
+      <div className="dashboard-header">
+        <h1>System Health Dashboard</h1>
+        <button type="button" onClick={loadDashboard} disabled={isLoading}>
+          {isLoading ? "Refreshing dashboard…" : "Refresh dashboard"}
+        </button>
+      </div>
       {isLoading && <p>Loading dashboard data...</p>}
 
       {error && (
@@ -100,40 +113,46 @@ function Dashboard({ onSessionExpired }) {
 
           <section>
             <h2>Systems</h2>
-            <div className="table-wrapper">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th>Host</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {systems.map((system) => (
-                    <tr
-                      key={system.id}
-                      onClick={() => setSelectedSystem(system)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          setSelectedSystem(system);
-                        }
-                      }}
-                      tabIndex={0}
-                      role="button"
-                      style={{ cursor: "pointer" }}
-                    >
-                      <td>{system.name}</td>
-                      <td>{system.type}</td>
-                      <td>{system.host}</td>
-                      <td>{system.status}</td>
+            {systems.length === 0 ? (
+              <p className="empty-state" role="status">
+                No monitored systems are available yet.
+              </p>
+            ) : (
+              <div className="table-wrapper">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Type</th>
+                      <th>Host</th>
+                      <th>Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {systems.map((system) => (
+                      <tr
+                        key={system.id}
+                        onClick={() => setSelectedSystem(system)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            setSelectedSystem(system);
+                          }
+                        }}
+                        tabIndex={0}
+                        role="button"
+                        style={{ cursor: "pointer" }}
+                      >
+                        <td>{system.name}</td>
+                        <td>{system.type}</td>
+                        <td>{system.host}</td>
+                        <td>{system.status}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
 
           <SystemDetails

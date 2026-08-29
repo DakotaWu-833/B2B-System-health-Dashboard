@@ -24,7 +24,7 @@ The team should review this draft before feature development. All JSON APIs use 
 | `GET` | `/api/systems/{id}` | Operations, Management | Retrieve one monitored system |
 | `GET` | `/api/systems/{id}/metrics` | Operations, Management | Retrieve recent metrics |
 | `POST` | `/api/systems/{id}/metrics` | Operations | Submit a metric reading |
-| `GET` | `/api/alerts` | Operations, Management | Retrieve alerts |
+| `GET` | `/api/alerts` | Operations, Management | Retrieve paginated alerts |
 | `PATCH` | `/api/alerts/{id}/acknowledge` | Operations | Acknowledge an active alert |
 | `PATCH` | `/api/alerts/{id}/resolve` | Operations | Resolve an active or acknowledged alert |
 
@@ -92,7 +92,36 @@ an acknowledged warning becomes critical, the existing alert is upgraded to `CRI
 and becomes `ACTIVE` again.
 
 `GET /api/alerts` returns alerts newest first. Optional `status` and `systemId` query
-parameters can be used separately or together.
+parameters can be used separately or together. Results are paged with zero-based `page`
+(default `0`) and `size` (default `20`, maximum `100`) parameters. Invalid pagination
+values return `400 Bad Request` using the common response envelope.
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "alertId": 9,
+        "systemId": 3,
+        "systemName": "Payment API",
+        "alertType": "HIGH_CPU",
+        "severity": "WARNING",
+        "message": "CPU usage reached the warning threshold",
+        "status": "ACTIVE",
+        "createdTime": "2026-08-28T01:05:00Z"
+      }
+    ],
+    "page": 0,
+    "size": 20,
+    "totalElements": 1,
+    "totalPages": 1,
+    "first": true,
+    "last": true
+  },
+  "message": "Alerts retrieved successfully"
+}
+```
 
 `PATCH /api/alerts/{id}/acknowledge` changes an active alert to `ACKNOWLEDGED`.
 Only Operations users may call alert status mutation endpoints. Repeating an acknowledge,

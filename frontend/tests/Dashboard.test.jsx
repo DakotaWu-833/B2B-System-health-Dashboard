@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import Dashboard from "../src/Dashboard";
 
@@ -94,6 +94,61 @@ describe("Dashboard", () => {
         credentials: "include",
       }
     );
+  });
+
+  test("shows an empty state and refreshes dashboard data", async () => {
+    const emptySummary = {
+      total: 0,
+      healthy: 0,
+      warning: 0,
+      critical: 0,
+      offline: 0,
+    };
+    const refreshedSummary = {
+      ...emptySummary,
+      total: 1,
+      healthy: 1,
+    };
+    const refreshedSystems = [{
+      id: 3,
+      name: "Inventory API",
+      type: "API",
+      host: "inventory.example.com",
+      status: "HEALTHY",
+    }];
+
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: emptySummary }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: [] }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: refreshedSummary }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: refreshedSystems }),
+      });
+
+    render(<Dashboard />);
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "No monitored systems are available yet."
+    );
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Refresh dashboard" })
+    );
+
+    expect(await screen.findByText("Inventory API")).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(globalThis.fetch).toHaveBeenCalledTimes(4);
   });
 
   test("shows an error when dashboard API request fails", async () => {

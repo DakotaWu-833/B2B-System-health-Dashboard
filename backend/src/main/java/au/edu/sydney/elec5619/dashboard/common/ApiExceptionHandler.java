@@ -30,6 +30,12 @@ public class ApiExceptionHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
+    @ExceptionHandler(InvalidPageRequestException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidPageRequest(
+            InvalidPageRequestException exception) {
+        return ResponseEntity.badRequest().body(ApiResponse.failure(exception.getMessage()));
+    }
+
     @ExceptionHandler(AlertNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleAlertNotFound(
             AlertNotFoundException exception) {

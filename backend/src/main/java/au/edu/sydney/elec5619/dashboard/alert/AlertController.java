@@ -1,8 +1,7 @@
 package au.edu.sydney.elec5619.dashboard.alert;
 
-import java.util.List;
-
 import au.edu.sydney.elec5619.dashboard.common.ApiResponse;
+import au.edu.sydney.elec5619.dashboard.common.PagedResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,11 +20,13 @@ public class AlertController {
     }
 
     @GetMapping
-    public ApiResponse<List<AlertResponse>> alerts(
+    public ApiResponse<PagedResponse<AlertResponse>> alerts(
             @RequestParam(required = false) AlertStatus status,
-            @RequestParam(required = false) Long systemId) {
+            @RequestParam(required = false) Long systemId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
         return ApiResponse.success(
-                alertService.getAlerts(status, systemId),
+                alertService.getAlerts(status, systemId, page, size),
                 "Alerts retrieved successfully");
     }
 

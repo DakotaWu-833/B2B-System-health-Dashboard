@@ -12,7 +12,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
+import au.edu.sydney.elec5619.dashboard.metric.MetricRepository;
 import au.edu.sydney.elec5619.dashboard.system.HealthStatus;
 import au.edu.sydney.elec5619.dashboard.system.MonitoredSystem;
 import au.edu.sydney.elec5619.dashboard.system.MonitoredSystemRepository;
@@ -20,10 +27,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -41,6 +50,9 @@ class AlertIntegrationTests {
 
     @Autowired
     private MonitoredSystemRepository monitoredSystemRepository;
+
+    @Autowired
+    private MetricRepository metricRepository;
 
     @Test
     void abnormalMetricCreatesAlertsForEveryExceededThreshold() throws Exception {
@@ -86,26 +98,43 @@ class AlertIntegrationTests {
     }
 
     @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void repeatedConditionEscalatesOpenAlertInsteadOfCreatingDuplicate() throws Exception {
-        MonitoredSystem monitoredSystem = createSystem("Orders API");
+        deleteBusinessData();
+        try {
+            MonitoredSystem monitoredSystem = createSystem("Orders API");
 
-        submitMetric(monitoredSystem.getId(), "80.00", "40.00", 100L, true);
-        Alert originalAlert = alertRepository
-                .findByMonitoredSystemIdOrderByCreatedTimeDesc(monitoredSystem.getId())
-                .getFirst();
-        originalAlert.changeStatus(AlertStatus.ACKNOWLEDGED);
-        alertRepository.saveAndFlush(originalAlert);
+            assertThat(runConcurrently(() -> submitMetricStatus(
+                    monitoredSystem.getId(), "80.00", "40.00", 100L, true)))
+                    .containsExactlyInAnyOrder(
+                            HttpStatus.CREATED.value(),
+                            HttpStatus.CREATED.value());
 
-        submitMetric(monitoredSystem.getId(), "95.00", "40.00", 100L, true);
+            Alert originalAlert = alertRepository
+                    .findByMonitoredSystemIdOrderByCreatedTimeDesc(monitoredSystem.getId())
+                    .getFirst();
+            assertThat(alertRepository
+                    .findByMonitoredSystemIdOrderByCreatedTimeDesc(monitoredSystem.getId()))
+                    .hasSize(1);
 
-        List<Alert> alerts = alertRepository
-                .findByMonitoredSystemIdOrderByCreatedTimeDesc(monitoredSystem.getId());
-        assertThat(alerts).singleElement().satisfies(alert -> {
-            assertThat(alert.getId()).isEqualTo(originalAlert.getId());
-            assertThat(alert.getSeverity()).isEqualTo(AlertSeverity.CRITICAL);
-            assertThat(alert.getStatus()).isEqualTo(AlertStatus.ACTIVE);
-            assertThat(alert.getMessage()).contains("critical threshold");
-        });
+            assertThat(runConcurrently(() -> acknowledgeStatus(originalAlert.getId())))
+                    .containsExactlyInAnyOrder(
+                            HttpStatus.OK.value(),
+                            HttpStatus.CONFLICT.value());
+
+            submitMetric(monitoredSystem.getId(), "95.00", "40.00", 100L, true);
+
+            List<Alert> alerts = alertRepository
+                    .findByMonitoredSystemIdOrderByCreatedTimeDesc(monitoredSystem.getId());
+            assertThat(alerts).singleElement().satisfies(alert -> {
+                assertThat(alert.getId()).isEqualTo(originalAlert.getId());
+                assertThat(alert.getSeverity()).isEqualTo(AlertSeverity.CRITICAL);
+                assertThat(alert.getStatus()).isEqualTo(AlertStatus.ACTIVE);
+                assertThat(alert.getMessage()).contains("critical threshold");
+            });
+        } finally {
+            deleteBusinessData();
+        }
     }
 
     @Test
@@ -254,5 +283,64 @@ class AlertIntegrationTests {
                                 responseTime,
                                 availability)))
                 .andExpect(status().isCreated());
+    }
+
+    private int submitMetricStatus(
+            Long systemId,
+            String cpuUsage,
+            String memoryUsage,
+            Long responseTime,
+            boolean availability) throws Exception {
+        return mockMvc.perform(post("/api/systems/{systemId}/metrics", systemId)
+                        .with(user("alert-test-user").roles("OPERATIONS"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "cpuUsage": %s,
+                                  "memoryUsage": %s,
+                                  "responseTime": %d,
+                                  "availability": %s
+                                }
+                                """.formatted(
+                                cpuUsage,
+                                memoryUsage,
+                                responseTime,
+                                availability)))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+    }
+
+    private int acknowledgeStatus(Long alertId) throws Exception {
+        return mockMvc.perform(patch("/api/alerts/{alertId}/acknowledge", alertId)
+                        .with(user("alert-test-user").roles("OPERATIONS"))
+                        .with(csrf()))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+    }
+
+    private List<Integer> runConcurrently(Callable<Integer> action) throws Exception {
+        CyclicBarrier startTogether = new CyclicBarrier(2);
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            Future<Integer> first = executor.submit(() -> {
+                startTogether.await(5, TimeUnit.SECONDS);
+                return action.call();
+            });
+            Future<Integer> second = executor.submit(() -> {
+                startTogether.await(5, TimeUnit.SECONDS);
+                return action.call();
+            });
+            return List.of(
+                    first.get(10, TimeUnit.SECONDS),
+                    second.get(10, TimeUnit.SECONDS));
+        }
+    }
+
+    private void deleteBusinessData() {
+        alertRepository.deleteAll();
+        metricRepository.deleteAll();
+        monitoredSystemRepository.deleteAll();
     }
 }

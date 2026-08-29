@@ -154,7 +154,7 @@ public class AlertService {
     }
 
     private Alert getAlert(Long alertId) {
-        return alertRepository.findById(alertId)
+        return alertRepository.findByIdForUpdate(alertId)
                 .orElseThrow(() -> new AlertNotFoundException(alertId));
     }
 }

@@ -66,6 +66,10 @@ public class SecurityConfig {
                                 "/api/alerts/*/acknowledge",
                                 "/api/alerts/*/resolve")
                         .hasRole("OPERATIONS")
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/systems/*/metrics")
+                        .hasRole("OPERATIONS")
                         .anyRequest()
                         .authenticated())
                 .exceptionHandling(exceptions -> exceptions

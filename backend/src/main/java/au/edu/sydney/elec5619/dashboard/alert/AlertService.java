@@ -181,6 +181,7 @@ public class AlertService {
         return PageRequest.of(
                 page,
                 size,
-                Sort.by(Sort.Direction.DESC, "createdTime"));
+                Sort.by(Sort.Direction.DESC, "createdTime")
+                        .and(Sort.by(Sort.Direction.DESC, "id")));
     }
 }

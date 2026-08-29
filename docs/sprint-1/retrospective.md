@@ -50,8 +50,11 @@ The team delivered a working React-Spring Boot-MySQL vertical slice on `develop`
 
 ## Team review record
 
-At the final retrospective meeting, record any corrections agreed by the team and add the meeting date here before moving ELG2-21 to Done.
+**Meeting minutes:**
 
-**Meeting date:** Pending team review
-
-**Agreed changes:** Pending team review
+- 17 August 2026, 2:00 pm-2:30 pm
+- 19 August 2026, 2:00 pm-2:30 pm
+- 22 August 2026, 2:00 pm-2:30 pm
+- 24 August 2026, 2:00 pm-2:30 pm
+- 26 August 2026, 2:00 pm-2:30 pm
+- 30 August 2026, 2:00 pm-2:30 pm

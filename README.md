@@ -173,6 +173,16 @@ The status will be determined using predefined thresholds based on the latest mo
 
 For example, high CPU or memory usage may change a system's status from **Healthy** to **Warning** or **Critical**.
 
+The initial status calculation uses the following default thresholds:
+
+| Metric | Warning | Critical |
+| --- | --- | --- |
+| CPU usage | `>= 75%` | `>= 90%` |
+| Memory usage | `>= 75%` | `>= 90%` |
+| Response time | `>= 500 ms` | `>= 1000 ms` |
+
+An unavailable system is always **Offline**. Otherwise, Critical takes precedence over Warning when multiple metrics have different severities. The defaults can be overridden with the health threshold environment variables defined in `application.yml`.
+
 ### 5.7 Alert Management
 
 The system will automatically generate an alert when a monitored metric exceeds a predefined threshold.
@@ -432,3 +442,116 @@ Support Role-Based Users
 ```
 
 The project will prioritise a **reliable and functional implementation of the core features** before considering additional advanced functionality.
+
+---
+
+## 13 Development Quick Start
+
+### Prerequisites
+
+- Java 21
+- Maven is not required globally; the repository includes Maven Wrapper 3.9.11
+- Node.js 22.12+
+- pnpm 11.19+
+- MySQL 8.4, either installed locally or started with Docker Compose
+
+### 13.1 Start MySQL
+
+If Docker is available, copy `.env.example` to `.env` and run:
+
+```bash
+docker compose up -d mysql
+```
+
+Alternatively, create a local MySQL database and provide `DB_URL`, `DB_USERNAME` and `DB_PASSWORD` to Spring Boot.
+
+### 13.2 Start the backend
+
+For a local Sprint 1 login, provide a demo user's password through the environment. The application hashes the password with BCrypt before persisting it and does not replace an existing account:
+
+```powershell
+$env:AUTH_SEED_ENABLED="true"
+$env:AUTH_SEED_USERNAME="demo.operations"
+$env:AUTH_SEED_PASSWORD="choose-a-local-password"
+$env:AUTH_SEED_ROLE="OPERATIONS"
+```
+
+Do not commit a real password or add it to `application.yml`.
+
+To populate a clean local database with three monitored systems, recent metric history and example alerts, enable the optional business data seeder before starting the backend:
+
+macOS or Linux:
+
+```bash
+export DEMO_DATA_SEED_ENABLED=true
+```
+
+Windows PowerShell:
+
+```powershell
+$env:DEMO_DATA_SEED_ENABLED="true"
+```
+
+The business data seeder is idempotent: it skips all changes when at least one monitored system already exists, so it does not overwrite or duplicate existing project data.
+
+Database schema changes are versioned in `backend/src/main/resources/db/migration`. A clean database applies the Flyway migrations before Hibernate validates the JPA mapping. An existing Sprint 1 database created by the earlier `ddl-auto=update` configuration is baselined at version 1 and then validated; if its schema no longer matches the entities, startup stops instead of changing tables implicitly.
+
+```bash
+cd backend
+./mvnw spring-boot:run
+```
+
+On Windows PowerShell:
+
+```powershell
+cd backend
+.\mvnw.cmd spring-boot:run
+```
+
+The backend is available at `http://localhost:8080`. Check `GET /api/health` before starting feature development. The authentication endpoint sequence and JSON contract are documented in [docs/api/api-contract.md](docs/api/api-contract.md).
+
+### 13.3 Start the frontend
+
+```bash
+cd frontend
+pnpm install
+pnpm dev
+```
+
+The frontend is available at `http://localhost:5173` and proxies `/api` requests to Spring Boot during local development.
+
+For a separately hosted backend, copy `frontend/.env.example` to `frontend/.env.local` and set `VITE_API_BASE_URL`, for example `VITE_API_BASE_URL=https://api.example.test`. The setting is applied consistently to health, authentication, dashboard, system and metric requests.
+
+### 13.4 Run automated verification
+
+```bash
+cd backend
+./mvnw clean test
+./mvnw -Pdatabase-integration verify
+```
+
+The normal backend suite uses isolated H2 databases. The database integration profile additionally applies the Flyway migration to an empty H2 database in MySQL compatibility mode and validates the resulting schema against JPA. When Docker is available, it also runs the same startup validation against a disposable MySQL 8.4 container; otherwise that one test is reported as skipped.
+
+```bash
+cd frontend
+pnpm install --frozen-lockfile
+pnpm test
+pnpm build
+```
+
+## 14 Repository Structure
+
+```text
+.
+├── backend/                 Spring Boot REST API
+├── frontend/                React and Vite application
+├── docs/
+│   ├── api/                 Shared API contract
+│   ├── sprint-1/            Contribution and retrospective evidence
+│   └── use-cases/           UML diagram and use-case briefs
+├── docker-compose.yml       Local MySQL service
+├── CONTRIBUTING.md          Branch and pull-request workflow
+└── README.md
+```
+
+Feature work should be developed on Jira-linked branches and merged through reviewed pull requests. See [CONTRIBUTING.md](CONTRIBUTING.md).

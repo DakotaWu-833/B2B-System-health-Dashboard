@@ -1,0 +1,429 @@
+:root {
+  color: #e8eef9;
+  background: #07111f;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 15% 15%, rgba(25, 114, 255, 0.18), transparent 30rem),
+    #07111f;
+}
+
+button {
+  border: 1px solid #2f71ff;
+  border-radius: 0.65rem;
+  padding: 0.7rem 1rem;
+  color: #ffffff;
+  background: #1c5fe0;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: #3676f0;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.app-shell {
+  width: min(1120px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 5rem 0;
+}
+
+.hero {
+  max-width: 760px;
+  margin-bottom: 2rem;
+}
+
+.eyebrow,
+.card-label {
+  margin: 0 0 0.65rem;
+  color: #77a7ff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 1rem;
+  font-size: clamp(2.4rem, 7vw, 4.8rem);
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+}
+
+.hero-copy {
+  max-width: 650px;
+  color: #a9b8cf;
+  font-size: 1.08rem;
+  line-height: 1.7;
+}
+
+.connection-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1rem;
+  padding: 1.5rem;
+  border: 1px solid #1d3454;
+  border-radius: 1rem;
+  background: rgba(12, 28, 49, 0.88);
+  box-shadow: 0 1rem 4rem rgba(0, 0, 0, 0.28);
+}
+
+.connection-card h2 {
+  margin-bottom: 0;
+}
+
+.status-badge {
+  align-self: start;
+  border-radius: 999px;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.status-up {
+  color: #6df0bd;
+  background: rgba(24, 179, 120, 0.16);
+}
+
+.status-down {
+  color: #ff9a9a;
+  background: rgba(229, 75, 75, 0.16);
+}
+
+.health-details {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.health-details div {
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: #0a1728;
+}
+
+.health-details dt {
+  margin-bottom: 0.35rem;
+  color: #7186a5;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.health-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.error-message {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #ffb1b1;
+}
+
+.connection-card button {
+  justify-self: start;
+}
+
+.next-steps {
+  margin-top: 3rem;
+}
+
+.workstream-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.workstream-grid article {
+  padding: 1.4rem;
+  border-top: 2px solid #2f71ff;
+  background: rgba(10, 23, 40, 0.65);
+}
+
+.workstream-grid span {
+  color: #77a7ff;
+  font-weight: 900;
+}
+
+.workstream-grid h3 {
+  margin: 1.3rem 0 0.55rem;
+}
+
+.workstream-grid p {
+  margin-bottom: 0;
+  color: #9fb0c8;
+  line-height: 1.55;
+}
+
+
+/* Dashboard */
+
+.dashboard {
+  margin-top: 3rem;
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.dashboard-header h1 {
+  margin-bottom: 0;
+}
+
+.dashboard-header button {
+  flex: 0 0 auto;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.overview-card {
+  padding: 1.25rem;
+  border: 1px solid #1d3454;
+  border-radius: 0.85rem;
+  background: rgba(12, 28, 49, 0.88);
+}
+
+.overview-card h3 {
+  margin-bottom: 0.6rem;
+  color: #9fb0c8;
+  font-size: 0.9rem;
+}
+
+.overview-card p {
+  margin-bottom: 0;
+  font-size: 2rem;
+  font-weight: 800;
+}
+
+.table-wrapper {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  border: 1px solid #1d3454;
+  border-radius: 0.85rem;
+  background: rgba(12, 28, 49, 0.88);
+}
+
+.empty-state {
+  padding: 1.5rem;
+  border: 1px dashed #334a68;
+  border-radius: 0.85rem;
+  color: #a9b8cf;
+  background: rgba(10, 23, 40, 0.65);
+}
+
+table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #1d3454;
+}
+
+th {
+  color: #77a7ff;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+tbody tr:hover {
+  background: rgba(47, 113, 255, 0.1);
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+
+
+/* System details */
+
+.system-details {
+  margin-top: 2rem;
+}
+
+.system-details-card {
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  border: 1px solid #1d3454;
+  border-radius: 0.85rem;
+  background: rgba(12, 28, 49, 0.88);
+}
+
+.system-details-card h3 {
+  margin-bottom: 1rem;
+}
+
+.system-details-card p {
+  margin-bottom: 0.6rem;
+  color: #a9b8cf;
+}
+
+.system-details-card strong {
+  color: #e8eef9;
+}
+
+.status-reasons {
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  border-left: 3px solid #2f71ff;
+  background: rgba(10, 23, 40, 0.65);
+}
+
+.status-reasons p,
+.status-reasons ul {
+  margin-top: 0.6rem;
+  margin-bottom: 0;
+}
+
+.system-details .table-wrapper {
+  margin-top: 0.75rem;
+}
+
+/* Login */
+
+.login-page {
+  width: min(480px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 4rem 0;
+}
+
+.login-card {
+  padding: 1.5rem;
+  border: 1px solid #1d3454;
+  border-radius: 1rem;
+  background: rgba(12, 28, 49, 0.88);
+  box-shadow: 0 1rem 4rem rgba(0, 0, 0, 0.28);
+}
+
+.login-card form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.login-card label {
+  font-weight: 700;
+}
+
+.login-card input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.75rem;
+  border: 1px solid #334a68;
+  border-radius: 0.5rem;
+  color: #e8eef9;
+  background: #0a1728;
+  font: inherit;
+}
+
+.login-card input:focus {
+  outline: 2px solid #2f71ff;
+  outline-offset: 2px;
+}
+
+.login-card button {
+  justify-self: start;
+  margin-top: 0.5rem;
+}
+
+
+.dashboard {
+  min-width: 0;
+  width: 100%;
+}
+
+.dashboard h1 {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .app-shell {
+    padding: 3rem 0;
+  }
+
+  .connection-card,
+  .health-details,
+  .workstream-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard h1 {
+    font-size: 2rem;
+    line-height: 1.05;
+  }
+
+  .dashboard-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dashboard-header button {
+    align-self: flex-start;
+  }
+
+  .overview-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .login-page {
+    padding: 2rem 0;
+  }
+
+  .login-card {
+    padding: 1rem;
+  }
+}

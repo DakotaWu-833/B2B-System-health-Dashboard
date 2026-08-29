@@ -1,0 +1,48 @@
+spring:
+  application:
+    name: system-health-dashboard-backend
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/system_health_dashboard?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+    username: ${DB_USERNAME:dashboard_user}
+    password: ${DB_PASSWORD:dashboard_password}
+  flyway:
+    baseline-on-migrate: true
+    baseline-version: 1
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax
+        secure: ${SESSION_COOKIE_SECURE:false}
+
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  metrics:
+    stale-after: ${METRIC_STALE_AFTER:PT5M}
+  demo-data:
+    enabled: ${DEMO_DATA_SEED_ENABLED:false}
+  health:
+    thresholds:
+      cpu-warning: ${HEALTH_CPU_WARNING_THRESHOLD:75.0}
+      cpu-critical: ${HEALTH_CPU_CRITICAL_THRESHOLD:90.0}
+      memory-warning: ${HEALTH_MEMORY_WARNING_THRESHOLD:75.0}
+      memory-critical: ${HEALTH_MEMORY_CRITICAL_THRESHOLD:90.0}
+      response-time-warning: ${HEALTH_RESPONSE_TIME_WARNING_MS:500}
+      response-time-critical: ${HEALTH_RESPONSE_TIME_CRITICAL_MS:1000}
+  auth:
+    seed:
+      enabled: ${AUTH_SEED_ENABLED:false}
+      username: ${AUTH_SEED_USERNAME:}
+      password: ${AUTH_SEED_PASSWORD:}
+      role: ${AUTH_SEED_ROLE:OPERATIONS}

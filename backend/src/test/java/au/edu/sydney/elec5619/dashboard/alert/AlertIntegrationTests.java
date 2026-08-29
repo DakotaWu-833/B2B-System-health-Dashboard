@@ -173,6 +173,12 @@ class AlertIntegrationTests {
                 .andExpect(jsonPath("$.data[0].systemName").value("Customer API"))
                 .andExpect(jsonPath("$.data[0].alertType").value("HIGH_CPU"));
 
+        mockMvc.perform(get("/api/alerts").param("status", "NOT_A_STATUS"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.data").doesNotExist())
+                .andExpect(jsonPath("$.message").value("Invalid value for status"));
+
         mockMvc.perform(patch("/api/alerts/{alertId}/acknowledge", activeAlert.getId())
                         .with(user("management-test-user").roles("MANAGEMENT"))
                         .with(csrf()))

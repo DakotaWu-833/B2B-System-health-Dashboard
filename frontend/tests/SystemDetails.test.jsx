@@ -30,6 +30,30 @@ function createDetails(system) {
 }
 
 describe("SystemDetails", () => {
+  test("notifies the app when the session has expired", async () => {
+    const onSessionExpired = vi.fn();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({
+        success: false,
+        data: null,
+        message: "Authentication required",
+      }),
+    });
+
+    render(
+      <SystemDetails
+        system={createSystem(1, "Payment API")}
+        onSessionExpired={onSessionExpired}
+      />
+    );
+
+    await waitFor(() => {
+      expect(onSessionExpired).toHaveBeenCalled();
+    });
+  });
+
   test("shows loading state while system details are being fetched", () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(
       () => new Promise(() => {})

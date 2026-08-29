@@ -494,6 +494,8 @@ $env:DEMO_DATA_SEED_ENABLED="true"
 
 The business data seeder is idempotent: it skips all changes when at least one monitored system already exists, so it does not overwrite or duplicate existing project data.
 
+Database schema changes are versioned in `backend/src/main/resources/db/migration`. A clean database applies the Flyway migrations before Hibernate validates the JPA mapping. An existing Sprint 1 database created by the earlier `ddl-auto=update` configuration is baselined at version 1 and then validated; if its schema no longer matches the entities, startup stops instead of changing tables implicitly.
+
 ```bash
 cd backend
 ./mvnw spring-boot:run
@@ -517,6 +519,25 @@ pnpm dev
 ```
 
 The frontend is available at `http://localhost:5173` and proxies `/api` requests to Spring Boot during local development.
+
+For a separately hosted backend, copy `frontend/.env.example` to `frontend/.env.local` and set `VITE_API_BASE_URL`, for example `VITE_API_BASE_URL=https://api.example.test`. The setting is applied consistently to health, authentication, dashboard, system and metric requests.
+
+### 13.4 Run automated verification
+
+```bash
+cd backend
+./mvnw clean test
+./mvnw -Pdatabase-integration verify
+```
+
+The normal backend suite uses isolated H2 databases. The database integration profile additionally applies the Flyway migration to an empty H2 database in MySQL compatibility mode and validates the resulting schema against JPA. When Docker is available, it also runs the same startup validation against a disposable MySQL 8.4 container; otherwise that one test is reported as skipped.
+
+```bash
+cd frontend
+pnpm install --frozen-lockfile
+pnpm test
+pnpm build
+```
 
 ## 14 Repository Structure
 

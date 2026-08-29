@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import SystemDetails from "./SystemDetails";
+import { apiFetch } from "./api";
 
-
-
-function Dashboard() {
+function Dashboard({ onSessionExpired }) {
   const [selectedSystem, setSelectedSystem] = useState(null);
   const [systems, setSystems] = useState([]);
   const [summary, setSummary] = useState({
@@ -23,13 +22,14 @@ function Dashboard() {
 
       try {
         const [summaryResponse, systemsResponse] = await Promise.all([
-          fetch("/api/dashboard/summary", {
-            credentials: "include",
-          }),
-          fetch("/api/systems", {
-            credentials: "include",
-          }),
+          apiFetch("/api/dashboard/summary"),
+          apiFetch("/api/systems"),
         ]);
+
+        if (summaryResponse.status === 401 || systemsResponse.status === 401) {
+          onSessionExpired?.();
+          return;
+        }
 
         if (!summaryResponse.ok || !systemsResponse.ok) {
           throw new Error("Failed to load dashboard data.");
@@ -53,8 +53,7 @@ function Dashboard() {
     }
 
     loadDashboard();
-  }, []);
-
+  }, [onSessionExpired]);
 
   return (
     <section className="dashboard">
@@ -111,8 +110,6 @@ function Dashboard() {
                     <th>Status</th>
                   </tr>
                 </thead>
-
-
                 <tbody>
                   {systems.map((system) => (
                     <tr
@@ -139,7 +136,10 @@ function Dashboard() {
             </div>
           </section>
 
-          <SystemDetails system={selectedSystem} />
+          <SystemDetails
+            system={selectedSystem}
+            onSessionExpired={onSessionExpired}
+          />
         </>
       )}
     </section>

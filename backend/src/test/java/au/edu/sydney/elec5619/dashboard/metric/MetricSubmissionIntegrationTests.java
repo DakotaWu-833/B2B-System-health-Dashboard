@@ -116,6 +116,24 @@ class MetricSubmissionIntegrationTests {
                 .andExpect(jsonPath("$.message", containsString("cpuUsage")))
                 .andExpect(jsonPath("$.message", containsString("responseTime")));
 
+        mockMvc.perform(post("/api/systems/{systemId}/metrics", monitoredSystem.getId())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"cpuUsage\":"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.data").doesNotExist())
+                .andExpect(jsonPath("$.message").value("Malformed request body"));
+
+        mockMvc.perform(post("/api/systems/{systemId}/metrics", monitoredSystem.getId())
+                        .with(csrf())
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("{}"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.data").doesNotExist())
+                .andExpect(jsonPath("$.message").value("Unsupported request content type"));
+
         assertThat(metricRepository.count()).isZero();
         assertThat(monitoredSystemRepository.findById(monitoredSystem.getId()))
                 .get()

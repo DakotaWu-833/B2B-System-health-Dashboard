@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { apiFetch } from "./api";
 
 function Login({ onLogin }) {
   const [username, setUsername] = useState("");
@@ -15,13 +16,7 @@ function Login({ onLogin }) {
     }
 
     try {
-    // 1. Get CSRF token
-      const csrfResponse = await fetch(
-        "/api/auth/csrf",
-        {
-         credentials: "include",
-        }
-      );
+      const csrfResponse = await apiFetch("/api/auth/csrf");
 
       const csrfResult = await csrfResponse.json();
 
@@ -31,22 +26,17 @@ function Login({ onLogin }) {
 
       const token = csrfResult.data.token;
 
-    // 2. Login to Spring Boot
-      const loginResponse = await fetch(
-        "/api/auth/login",
-        {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-            "X-CSRF-TOKEN": token,
-          },
-          body: JSON.stringify({
-            username: username.trim(),
-            password,
-          }),
-        }
-      );
+      const loginResponse = await apiFetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-TOKEN": token,
+        },
+        body: JSON.stringify({
+          username: username.trim(),
+          password,
+        }),
+      });
 
       const loginResult = await loginResponse.json();
 
@@ -55,7 +45,6 @@ function Login({ onLogin }) {
         return;
       }
 
-    // 3. Tell App.jsx that login succeeded
       onLogin(loginResult.data);
     } catch (error) {
       console.error("Login failed:", error);

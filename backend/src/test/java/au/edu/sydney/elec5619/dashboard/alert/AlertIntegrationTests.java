@@ -276,6 +276,40 @@ class AlertIntegrationTests {
     }
 
     @Test
+    void usesAlertIdAsThePaginationTieBreaker() throws Exception {
+        MonitoredSystem monitoredSystem = createSystem("Shared Timestamp API");
+        Instant sharedCreatedTime = Instant.parse("2026-08-29T09:30:00Z");
+        Alert firstAlert = alertRepository.saveAndFlush(new Alert(
+                monitoredSystem,
+                "HIGH_CPU",
+                AlertSeverity.WARNING,
+                "CPU usage reached the warning threshold",
+                AlertStatus.ACTIVE,
+                sharedCreatedTime));
+        Alert secondAlert = alertRepository.saveAndFlush(new Alert(
+                monitoredSystem,
+                "HIGH_MEMORY",
+                AlertSeverity.WARNING,
+                "Memory usage reached the warning threshold",
+                AlertStatus.ACTIVE,
+                sharedCreatedTime));
+
+        mockMvc.perform(get("/api/alerts")
+                        .param("systemId", monitoredSystem.getId().toString())
+                        .param("page", "0")
+                        .param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].alertId").value(secondAlert.getId()));
+
+        mockMvc.perform(get("/api/alerts")
+                        .param("systemId", monitoredSystem.getId().toString())
+                        .param("page", "1")
+                        .param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].alertId").value(firstAlert.getId()));
+    }
+
+    @Test
     void rejectsAcknowledgingResolvedAlertAndReturnsNotFoundForUnknownAlert() throws Exception {
         MonitoredSystem monitoredSystem = createSystem("Resolved API");
         Alert resolvedAlert = alertRepository.saveAndFlush(new Alert(

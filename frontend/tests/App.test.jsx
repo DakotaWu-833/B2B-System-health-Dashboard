@@ -7,6 +7,56 @@ afterEach(() => {
 });
 
 describe("App", () => {
+  test("returns to sign in when the dashboard session has expired", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((url) => {
+      if (url === "/api/health") {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            data: {
+              service: "system-health-dashboard",
+              status: "UP",
+              timestamp: "2026-08-29T08:00:00Z",
+            },
+          }),
+        });
+      }
+
+      if (url === "/api/auth/me") {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            success: true,
+            data: { username: "testuser", role: "OPERATIONS" },
+          }),
+        });
+      }
+
+      if (url === "/api/dashboard/summary" || url === "/api/systems") {
+        return Promise.resolve({
+          ok: false,
+          status: 401,
+          json: async () => ({
+            success: false,
+            data: null,
+            message: "Authentication required",
+          }),
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected request: ${url}`));
+    });
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole("heading", { name: "Sign in" })
+    ).toBeInTheDocument();
+  });
+
   test("logs out successfully and returns to the login page", async () => {
     const currentUser = {
       username: "testuser",

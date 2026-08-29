@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { apiFetch } from "./api";
 
-function SystemDetails({ system }) {
+function SystemDetails({ system, onSessionExpired }) {
   const [details, setDetails] = useState(null);
   const [metrics, setMetrics] = useState([]);
   const [error, setError] = useState("");
@@ -19,12 +20,20 @@ function SystemDetails({ system }) {
     setMetrics([]);
     setError("");
 
-    fetch(`/api/systems/${system.id}`, {
-      credentials: "include",
+    apiFetch(`/api/systems/${system.id}`, {
       signal: controller.signal,
     })
-      .then((response) => response.json())
+      .then((response) => {
+        if (response.status === 401) {
+          onSessionExpired?.();
+          return null;
+        }
+        return response.json();
+      })
       .then((result) => {
+        if (!result) {
+          return;
+        }
         if (result.success) {
           setDetails(result.data);
         } else {
@@ -40,12 +49,20 @@ function SystemDetails({ system }) {
         }
       });
 
-    fetch(`/api/systems/${system.id}/metrics`, {
-      credentials: "include",
+    apiFetch(`/api/systems/${system.id}/metrics`, {
       signal: controller.signal,
     })
-      .then((response) => response.json())
+      .then((response) => {
+        if (response.status === 401) {
+          onSessionExpired?.();
+          return null;
+        }
+        return response.json();
+      })
       .then((result) => {
+        if (!result) {
+          return;
+        }
         if (result.success) {
           setMetrics(result.data);
         } else {
@@ -63,7 +80,7 @@ function SystemDetails({ system }) {
     return () => {
       controller.abort();
     };
-  }, [system]);
+  }, [system, onSessionExpired]);
 
   if (!system) {
     return null;

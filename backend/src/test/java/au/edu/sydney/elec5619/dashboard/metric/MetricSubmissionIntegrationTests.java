@@ -3,6 +3,7 @@ package au.edu.sydney.elec5619.dashboard.metric;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -41,6 +42,28 @@ class MetricSubmissionIntegrationTests {
     @Test
     void submitsMetricAndUpdatesSystemStatusInOneRequest() throws Exception {
         MonitoredSystem monitoredSystem = createSystem("Orders API");
+
+        mockMvc.perform(post("/api/systems/{systemId}/metrics", monitoredSystem.getId())
+                        .with(user("management-test-user").roles("MANAGEMENT"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "cpuUsage": 92.50,
+                                  "memoryUsage": 64.00,
+                                  "responseTime": 210,
+                                  "availability": true
+                                }
+                                """))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Access denied"));
+
+        assertThat(metricRepository.count()).isZero();
+        assertThat(monitoredSystemRepository.findById(monitoredSystem.getId()))
+                .get()
+                .extracting(MonitoredSystem::getStatus)
+                .isEqualTo(HealthStatus.HEALTHY);
 
         mockMvc.perform(post("/api/systems/{systemId}/metrics", monitoredSystem.getId())
                         .with(csrf())
@@ -92,6 +115,24 @@ class MetricSubmissionIntegrationTests {
                 .andExpect(jsonPath("$.data").doesNotExist())
                 .andExpect(jsonPath("$.message", containsString("cpuUsage")))
                 .andExpect(jsonPath("$.message", containsString("responseTime")));
+
+        mockMvc.perform(post("/api/systems/{systemId}/metrics", monitoredSystem.getId())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"cpuUsage\":"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.data").doesNotExist())
+                .andExpect(jsonPath("$.message").value("Malformed request body"));
+
+        mockMvc.perform(post("/api/systems/{systemId}/metrics", monitoredSystem.getId())
+                        .with(csrf())
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("{}"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.data").doesNotExist())
+                .andExpect(jsonPath("$.message").value("Unsupported request content type"));
 
         assertThat(metricRepository.count()).isZero();
         assertThat(monitoredSystemRepository.findById(monitoredSystem.getId()))

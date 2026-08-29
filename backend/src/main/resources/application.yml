@@ -5,9 +5,12 @@ spring:
     url: ${DB_URL:jdbc:mysql://localhost:3306/system_health_dashboard?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
     username: ${DB_USERNAME:dashboard_user}
     password: ${DB_PASSWORD:dashboard_password}
+  flyway:
+    baseline-on-migrate: true
+    baseline-version: 1
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     open-in-view: false
     properties:
       hibernate:

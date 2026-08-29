@@ -3,8 +3,14 @@ package au.edu.sydney.elec5619.dashboard.alert;
 import java.math.BigDecimal;
 import java.util.List;
 
+import au.edu.sydney.elec5619.dashboard.common.InvalidPageRequestException;
+import au.edu.sydney.elec5619.dashboard.common.PagedResponse;
 import au.edu.sydney.elec5619.dashboard.metric.Metric;
 import au.edu.sydney.elec5619.dashboard.system.HealthThresholdProperties;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,6 +19,7 @@ public class AlertService {
 
     private static final List<AlertStatus> OPEN_STATUSES =
             List.of(AlertStatus.ACTIVE, AlertStatus.ACKNOWLEDGED);
+    private static final int MAX_PAGE_SIZE = 100;
 
     private final AlertRepository alertRepository;
     private final HealthThresholdProperties thresholds;
@@ -66,21 +73,27 @@ public class AlertService {
     }
 
     @Transactional(readOnly = true)
-    public List<AlertResponse> getAlerts(AlertStatus status, Long systemId) {
-        List<Alert> alerts;
+    public PagedResponse<AlertResponse> getAlerts(
+            AlertStatus status,
+            Long systemId,
+            int page,
+            int size) {
+        Pageable pageable = alertPage(page, size);
+        Page<Alert> alerts;
         if (status != null && systemId != null) {
-            alerts = alertRepository.findByMonitoredSystemIdAndStatusOrderByCreatedTimeDesc(
+            alerts = alertRepository.findByMonitoredSystemIdAndStatus(
                     systemId,
-                    status);
+                    status,
+                    pageable);
         } else if (status != null) {
-            alerts = alertRepository.findByStatusOrderByCreatedTimeDesc(status);
+            alerts = alertRepository.findByStatus(status, pageable);
         } else if (systemId != null) {
-            alerts = alertRepository.findByMonitoredSystemIdOrderByCreatedTimeDesc(systemId);
+            alerts = alertRepository.findByMonitoredSystemId(systemId, pageable);
         } else {
-            alerts = alertRepository.findAllByOrderByCreatedTimeDesc();
+            alerts = alertRepository.findAll(pageable);
         }
 
-        return alerts.stream().map(AlertResponse::from).toList();
+        return PagedResponse.from(alerts.map(AlertResponse::from));
     }
 
     @Transactional
@@ -154,7 +167,20 @@ public class AlertService {
     }
 
     private Alert getAlert(Long alertId) {
-        return alertRepository.findById(alertId)
+        return alertRepository.findByIdForUpdate(alertId)
                 .orElseThrow(() -> new AlertNotFoundException(alertId));
+    }
+
+    private Pageable alertPage(int page, int size) {
+        if (page < 0) {
+            throw new InvalidPageRequestException("page must be greater than or equal to 0");
+        }
+        if (size < 1 || size > MAX_PAGE_SIZE) {
+            throw new InvalidPageRequestException("size must be between 1 and " + MAX_PAGE_SIZE);
+        }
+        return PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Direction.DESC, "createdTime"));
     }
 }

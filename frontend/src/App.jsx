@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Dashboard from "./Dashboard";
-
 import Login from "./Login";
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "";
+import { apiFetch } from "./api";
 
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -16,7 +15,7 @@ function App() {
     setError("");
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/health`, { signal });
+      const response = await apiFetch("/api/health", { signal });
 
       if (!response.ok) {
         throw new Error(`Backend returned HTTP ${response.status}`);
@@ -43,9 +42,7 @@ function App() {
   }, [checkBackend]);
 
   useEffect(() => {
-    fetch(`${apiBaseUrl}/api/auth/me`, {
-      credentials: "include",
-    })
+    apiFetch("/api/auth/me")
       .then(async (response) => {
         if (!response.ok) {
           return null;
@@ -66,11 +63,13 @@ function App() {
       });
   }, []);
 
+  const handleSessionExpired = useCallback(() => {
+    setCurrentUser(null);
+  }, []);
+
   async function handleLogout() {
     try {
-      const csrfResponse = await fetch(`${apiBaseUrl}/api/auth/csrf`, {
-        credentials: "include",
-      });
+      const csrfResponse = await apiFetch("/api/auth/csrf");
 
       if (!csrfResponse.ok) {
         throw new Error(`Failed to get CSRF token: HTTP ${csrfResponse.status}`);
@@ -78,13 +77,17 @@ function App() {
 
       const csrfResult = await csrfResponse.json();
 
-      const logoutResponse = await fetch(`${apiBaseUrl}/api/auth/logout`, {
+      const logoutResponse = await apiFetch("/api/auth/logout", {
         method: "POST",
-        credentials: "include",
         headers: {
           "X-CSRF-TOKEN": csrfResult.data.token,
         },
       });
+
+      if (logoutResponse.status === 401) {
+        setCurrentUser(null);
+        return;
+      }
 
       if (!logoutResponse.ok) {
         throw new Error(`Logout failed with HTTP ${logoutResponse.status}`);
@@ -156,7 +159,7 @@ function App() {
         </button>
       </section>
 
-      <Dashboard />
+      <Dashboard onSessionExpired={handleSessionExpired} />
     </main>
   );
 }

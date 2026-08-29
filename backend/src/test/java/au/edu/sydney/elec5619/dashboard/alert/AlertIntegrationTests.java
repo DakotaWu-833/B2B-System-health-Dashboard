@@ -12,7 +12,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
+import au.edu.sydney.elec5619.dashboard.metric.MetricRepository;
 import au.edu.sydney.elec5619.dashboard.system.HealthStatus;
 import au.edu.sydney.elec5619.dashboard.system.MonitoredSystem;
 import au.edu.sydney.elec5619.dashboard.system.MonitoredSystemRepository;
@@ -20,10 +27,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -41,6 +50,9 @@ class AlertIntegrationTests {
 
     @Autowired
     private MonitoredSystemRepository monitoredSystemRepository;
+
+    @Autowired
+    private MetricRepository metricRepository;
 
     @Test
     void abnormalMetricCreatesAlertsForEveryExceededThreshold() throws Exception {
@@ -86,26 +98,43 @@ class AlertIntegrationTests {
     }
 
     @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void repeatedConditionEscalatesOpenAlertInsteadOfCreatingDuplicate() throws Exception {
-        MonitoredSystem monitoredSystem = createSystem("Orders API");
+        deleteBusinessData();
+        try {
+            MonitoredSystem monitoredSystem = createSystem("Orders API");
 
-        submitMetric(monitoredSystem.getId(), "80.00", "40.00", 100L, true);
-        Alert originalAlert = alertRepository
-                .findByMonitoredSystemIdOrderByCreatedTimeDesc(monitoredSystem.getId())
-                .getFirst();
-        originalAlert.changeStatus(AlertStatus.ACKNOWLEDGED);
-        alertRepository.saveAndFlush(originalAlert);
+            assertThat(runConcurrently(() -> submitMetricStatus(
+                    monitoredSystem.getId(), "80.00", "40.00", 100L, true)))
+                    .containsExactlyInAnyOrder(
+                            HttpStatus.CREATED.value(),
+                            HttpStatus.CREATED.value());
 
-        submitMetric(monitoredSystem.getId(), "95.00", "40.00", 100L, true);
+            Alert originalAlert = alertRepository
+                    .findByMonitoredSystemIdOrderByCreatedTimeDesc(monitoredSystem.getId())
+                    .getFirst();
+            assertThat(alertRepository
+                    .findByMonitoredSystemIdOrderByCreatedTimeDesc(monitoredSystem.getId()))
+                    .hasSize(1);
 
-        List<Alert> alerts = alertRepository
-                .findByMonitoredSystemIdOrderByCreatedTimeDesc(monitoredSystem.getId());
-        assertThat(alerts).singleElement().satisfies(alert -> {
-            assertThat(alert.getId()).isEqualTo(originalAlert.getId());
-            assertThat(alert.getSeverity()).isEqualTo(AlertSeverity.CRITICAL);
-            assertThat(alert.getStatus()).isEqualTo(AlertStatus.ACTIVE);
-            assertThat(alert.getMessage()).contains("critical threshold");
-        });
+            assertThat(runConcurrently(() -> acknowledgeStatus(originalAlert.getId())))
+                    .containsExactlyInAnyOrder(
+                            HttpStatus.OK.value(),
+                            HttpStatus.CONFLICT.value());
+
+            submitMetric(monitoredSystem.getId(), "95.00", "40.00", 100L, true);
+
+            List<Alert> alerts = alertRepository
+                    .findByMonitoredSystemIdOrderByCreatedTimeDesc(monitoredSystem.getId());
+            assertThat(alerts).singleElement().satisfies(alert -> {
+                assertThat(alert.getId()).isEqualTo(originalAlert.getId());
+                assertThat(alert.getSeverity()).isEqualTo(AlertSeverity.CRITICAL);
+                assertThat(alert.getStatus()).isEqualTo(AlertStatus.ACTIVE);
+                assertThat(alert.getMessage()).contains("critical threshold");
+            });
+        } finally {
+            deleteBusinessData();
+        }
     }
 
     @Test
@@ -119,7 +148,7 @@ class AlertIntegrationTests {
                 "CPU usage reached the warning threshold",
                 AlertStatus.ACTIVE,
                 Instant.parse("2026-08-28T01:05:00Z")));
-        alertRepository.saveAndFlush(new Alert(
+        Alert resolvedAlert = alertRepository.saveAndFlush(new Alert(
                 firstSystem,
                 "SLOW_RESPONSE",
                 AlertSeverity.WARNING,
@@ -139,10 +168,58 @@ class AlertIntegrationTests {
                         .param("systemId", firstSystem.getId().toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.data.length()").value(1))
-                .andExpect(jsonPath("$.data[0].alertId").value(activeAlert.getId()))
-                .andExpect(jsonPath("$.data[0].systemName").value("Customer API"))
-                .andExpect(jsonPath("$.data[0].alertType").value("HIGH_CPU"));
+                .andExpect(jsonPath("$.data.items.length()").value(1))
+                .andExpect(jsonPath("$.data.items[0].alertId").value(activeAlert.getId()))
+                .andExpect(jsonPath("$.data.items[0].systemName").value("Customer API"))
+                .andExpect(jsonPath("$.data.items[0].alertType").value("HIGH_CPU"))
+                .andExpect(jsonPath("$.data.page").value(0))
+                .andExpect(jsonPath("$.data.size").value(20))
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.totalPages").value(1))
+                .andExpect(jsonPath("$.data.first").value(true))
+                .andExpect(jsonPath("$.data.last").value(true));
+
+        mockMvc.perform(get("/api/alerts")
+                        .param("page", "0")
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items.length()").value(2))
+                .andExpect(jsonPath("$.data.items[0].alertId")
+                        .value(directlyResolvedAlert.getId()))
+                .andExpect(jsonPath("$.data.items[1].alertId").value(activeAlert.getId()))
+                .andExpect(jsonPath("$.data.totalElements").value(3))
+                .andExpect(jsonPath("$.data.totalPages").value(2))
+                .andExpect(jsonPath("$.data.first").value(true))
+                .andExpect(jsonPath("$.data.last").value(false));
+
+        mockMvc.perform(get("/api/alerts")
+                        .param("page", "1")
+                        .param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items.length()").value(1))
+                .andExpect(jsonPath("$.data.items[0].alertId").value(resolvedAlert.getId()))
+                .andExpect(jsonPath("$.data.page").value(1))
+                .andExpect(jsonPath("$.data.first").value(false))
+                .andExpect(jsonPath("$.data.last").value(true));
+
+        mockMvc.perform(get("/api/alerts").param("page", "-1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.data").doesNotExist())
+                .andExpect(jsonPath("$.message").value(
+                        "page must be greater than or equal to 0"));
+
+        mockMvc.perform(get("/api/alerts").param("size", "101"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.data").doesNotExist())
+                .andExpect(jsonPath("$.message").value("size must be between 1 and 100"));
+
+        mockMvc.perform(get("/api/alerts").param("status", "NOT_A_STATUS"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.data").doesNotExist())
+                .andExpect(jsonPath("$.message").value("Invalid value for status"));
 
         mockMvc.perform(patch("/api/alerts/{alertId}/acknowledge", activeAlert.getId())
                         .with(user("management-test-user").roles("MANAGEMENT"))
@@ -254,5 +331,64 @@ class AlertIntegrationTests {
                                 responseTime,
                                 availability)))
                 .andExpect(status().isCreated());
+    }
+
+    private int submitMetricStatus(
+            Long systemId,
+            String cpuUsage,
+            String memoryUsage,
+            Long responseTime,
+            boolean availability) throws Exception {
+        return mockMvc.perform(post("/api/systems/{systemId}/metrics", systemId)
+                        .with(user("alert-test-user").roles("OPERATIONS"))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "cpuUsage": %s,
+                                  "memoryUsage": %s,
+                                  "responseTime": %d,
+                                  "availability": %s
+                                }
+                                """.formatted(
+                                cpuUsage,
+                                memoryUsage,
+                                responseTime,
+                                availability)))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+    }
+
+    private int acknowledgeStatus(Long alertId) throws Exception {
+        return mockMvc.perform(patch("/api/alerts/{alertId}/acknowledge", alertId)
+                        .with(user("alert-test-user").roles("OPERATIONS"))
+                        .with(csrf()))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+    }
+
+    private List<Integer> runConcurrently(Callable<Integer> action) throws Exception {
+        CyclicBarrier startTogether = new CyclicBarrier(2);
+        try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+            Future<Integer> first = executor.submit(() -> {
+                startTogether.await(5, TimeUnit.SECONDS);
+                return action.call();
+            });
+            Future<Integer> second = executor.submit(() -> {
+                startTogether.await(5, TimeUnit.SECONDS);
+                return action.call();
+            });
+            return List.of(
+                    first.get(10, TimeUnit.SECONDS),
+                    second.get(10, TimeUnit.SECONDS));
+        }
+    }
+
+    private void deleteBusinessData() {
+        alertRepository.deleteAll();
+        metricRepository.deleteAll();
+        monitoredSystemRepository.deleteAll();
     }
 }

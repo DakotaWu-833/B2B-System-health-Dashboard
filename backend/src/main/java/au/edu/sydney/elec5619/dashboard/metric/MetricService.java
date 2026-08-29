@@ -35,7 +35,7 @@ public class MetricService {
 
     @Transactional
     public MetricResponse submitMetric(Long systemId, @Valid MetricSubmissionRequest request) {
-        MonitoredSystem monitoredSystem = monitoredSystemRepository.findById(systemId)
+        MonitoredSystem monitoredSystem = monitoredSystemRepository.findByIdForUpdate(systemId)
                 .orElseThrow(() -> new MonitoredSystemNotFoundException(systemId));
 
         Metric metric = new Metric(

@@ -192,8 +192,20 @@ h1 {
   margin-top: 3rem;
 }
 
-.dashboard>h1 {
+.dashboard-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
   margin-bottom: 1.5rem;
+}
+
+.dashboard-header h1 {
+  margin-bottom: 0;
+}
+
+.dashboard-header button {
+  flex: 0 0 auto;
 }
 
 .overview-grid {
@@ -230,6 +242,14 @@ h1 {
   border: 1px solid #1d3454;
   border-radius: 0.85rem;
   background: rgba(12, 28, 49, 0.88);
+}
+
+.empty-state {
+  padding: 1.5rem;
+  border: 1px dashed #334a68;
+  border-radius: 0.85rem;
+  color: #a9b8cf;
+  background: rgba(10, 23, 40, 0.65);
 }
 
 table {
@@ -384,6 +404,15 @@ tbody tr:last-child td {
     line-height: 1.05;
   }
 
+  .dashboard-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dashboard-header button {
+    align-self: flex-start;
+  }
+
   .overview-grid {
     grid-template-columns: 1fr;
   }
@@ -398,4 +427,3 @@ tbody tr:last-child td {
     padding: 1rem;
   }
 }
-

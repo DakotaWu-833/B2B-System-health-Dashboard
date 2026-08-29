@@ -1,0 +1,28 @@
+@startuml
+left to right direction
+skinparam backgroundColor white
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor #F4F8FF
+  BorderColor #2457A6
+  ArrowColor #344054
+}
+
+actor "Operations Staff" as Operations
+actor "Management User" as Management
+
+rectangle "B2B System Health Dashboard - Sprint 1" {
+  usecase "UC-01\nSign in and sign out" as UC01
+  usecase "UC-02\nView system health overview" as UC02
+  usecase "UC-03\nInspect system details\nand recent metrics" as UC03
+}
+
+Operations --> UC01
+Operations --> UC02
+Operations --> UC03
+Management --> UC01
+Management --> UC02
+Management --> UC03
+
+UC03 ..> UC02 : <<extend>>
+@enduml

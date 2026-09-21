@@ -1,6 +1,6 @@
-# API Contract - Sprint 1 Draft
+# API Contract
 
-The team should review this draft before feature development. All JSON APIs use the `/api` prefix and the common response envelope below.
+All JSON APIs use the `/api` prefix and the common response envelope below.
 
 ```json
 {
@@ -10,7 +10,7 @@ The team should review this draft before feature development. All JSON APIs use 
 }
 ```
 
-## Planned endpoints
+## Implemented endpoints
 
 | Method | Endpoint | Access | Purpose |
 | --- | --- | --- | --- |
@@ -131,7 +131,7 @@ acknowledged alert to `RESOLVED`. An unknown alert ID returns `404 Not Found`.
 
 ## Authentication contract
 
-Sprint 1 uses a server-side HTTP session. The browser must include credentials on authentication requests. Before each state-changing request, call `GET /api/auth/csrf`, then send `data.token` in the header named by `data.headerName` (`X-CSRF-TOKEN`).
+The application uses a server-side HTTP session. The browser must include credentials on authentication requests. Before each state-changing request, call `GET /api/auth/csrf`, then send `data.token` in the header named by `data.headerName` (`X-CSRF-TOKEN`).
 
 ### Obtain a CSRF token
 
@@ -211,10 +211,9 @@ Cookie: JSESSIONID=...
 X-CSRF-TOKEN: generated-token
 ```
 
-The server invalidates the session and clears the session cookie. Sprint 1 stores the user
+The server invalidates the session and clears the session cookie. Authentication stores the user
 role, enforces authenticated versus public access, and restricts alert status mutation
-endpoints to Operations users. Complete endpoint-specific RBAC for the remaining APIs is
-outside the Sprint 1 authentication scope.
+endpoints to Operations users.
 
 ## Dashboard and system queries
 

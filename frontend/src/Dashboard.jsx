@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
+import AlertCenter from "./AlertCenter";
 import SystemDetails from "./SystemDetails";
 import { apiFetch } from "./api";
 
-function Dashboard({ onSessionExpired }) {
+function Dashboard({ currentUser, onSessionExpired }) {
   const [selectedSystem, setSelectedSystem] = useState(null);
   const [systems, setSystems] = useState([]);
   const [summary, setSummary] = useState({
@@ -159,6 +160,13 @@ function Dashboard({ onSessionExpired }) {
             system={selectedSystem}
             onSessionExpired={onSessionExpired}
           />
+
+          {currentUser && (
+            <AlertCenter
+              currentUser={currentUser}
+              onSessionExpired={onSessionExpired}
+            />
+          )}
         </>
       )}
     </section>

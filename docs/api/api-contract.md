@@ -229,3 +229,9 @@ outside the Sprint 1 authentication scope.
 
 Metric data is stale when its timestamp is older than `app.metrics.stale-after`, which
 defaults to five minutes (`PT5M`).
+
+# Sprint 3 system-management extension
+
+See [system management and permission contract](../sprint-3/system-management-api.md)
+for POST /api/systems, PUT /api/systems/{id}, enriched GET /api/systems data,
+validation and role requirements.

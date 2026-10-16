@@ -1,14 +1,13 @@
 package au.edu.sydney.elec5619.dashboard.system;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
 import au.edu.sydney.elec5619.dashboard.metric.Metric;
+import au.edu.sydney.elec5619.dashboard.metric.MetricFreshnessPolicy;
 import au.edu.sydney.elec5619.dashboard.metric.MetricReadingResponse;
 import au.edu.sydney.elec5619.dashboard.metric.MetricRepository;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,17 +17,17 @@ public class SystemService {
     private final MonitoredSystemRepository monitoredSystemRepository;
     private final MetricRepository metricRepository;
     private final HealthThresholdProperties thresholds;
-    private final Duration staleAfter;
+    private final MetricFreshnessPolicy freshnessPolicy;
 
     public SystemService(
             MonitoredSystemRepository monitoredSystemRepository,
             MetricRepository metricRepository,
             HealthThresholdProperties thresholds,
-            @Value("${app.metrics.stale-after:PT5M}") Duration staleAfter) {
+            MetricFreshnessPolicy freshnessPolicy) {
         this.monitoredSystemRepository = monitoredSystemRepository;
         this.metricRepository = metricRepository;
         this.thresholds = thresholds;
-        this.staleAfter = staleAfter;
+        this.freshnessPolicy = freshnessPolicy;
     }
 
     @Transactional(readOnly = true)
@@ -46,7 +45,7 @@ public class SystemService {
                 .findFirstByMonitoredSystemIdOrderByRecordedAtDesc(systemId)
                 .orElse(null);
 
-        MetricDataStatus dataStatus = dataStatus(latestMetric);
+        MetricDataStatus dataStatus = freshnessPolicy.dataStatus(latestMetric, Instant.now());
         return new SystemDetailResponse(
                 system.getId(),
                 system.getName(),
@@ -57,16 +56,6 @@ public class SystemService {
                 latestMetric == null ? null : MetricReadingResponse.from(latestMetric),
                 dataStatus,
                 statusReasons(latestMetric, dataStatus));
-    }
-
-    private MetricDataStatus dataStatus(Metric metric) {
-        if (metric == null) {
-            return MetricDataStatus.NO_DATA;
-        }
-        Instant staleBefore = Instant.now().minus(staleAfter);
-        return metric.getRecordedAt().isBefore(staleBefore)
-                ? MetricDataStatus.STALE
-                : MetricDataStatus.FRESH;
     }
 
     private List<String> statusReasons(Metric metric, MetricDataStatus dataStatus) {

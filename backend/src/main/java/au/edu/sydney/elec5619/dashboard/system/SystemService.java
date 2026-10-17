@@ -14,6 +14,7 @@ import au.edu.sydney.elec5619.dashboard.metric.MetricReadingResponse;
 import au.edu.sydney.elec5619.dashboard.metric.MetricRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -76,27 +77,51 @@ public class SystemService {
 
     @Transactional
     public SystemListItemResponse createSystem(SystemMutationRequest request) {
+        if (monitoredSystemRepository.existsByNameAndTypeAndHost(
+                request.name().trim(), request.type().trim(), request.host().trim())) {
+            throw new DuplicateMonitoredSystemException();
+        }
         MonitoredSystem system = new MonitoredSystem(
                 request.name().trim(),
                 request.type().trim(),
                 request.host().trim(),
                 HealthStatus.HEALTHY,
                 normaliseDescription(request.description()));
-        return SystemListItemResponse.from(monitoredSystemRepository.save(system));
+        return SystemListItemResponse.from(saveSystem(system));
     }
 
     @Transactional
     public SystemListItemResponse updateSystem(Long systemId, SystemMutationRequest request) {
         MonitoredSystem system = monitoredSystemRepository.findByIdForUpdate(systemId)
                 .orElseThrow(() -> new MonitoredSystemNotFoundException(systemId));
+        if (monitoredSystemRepository.existsByNameAndTypeAndHostAndIdNot(
+                request.name().trim(), request.type().trim(), request.host().trim(), systemId)) {
+            throw new DuplicateMonitoredSystemException();
+        }
         system.updateDetails(
                 request.name().trim(),
                 request.type().trim(),
                 request.host().trim(),
                 normaliseDescription(request.description()));
+        saveSystem(system);
         Metric latestMetric = metricRepository
                 .findFirstByMonitoredSystemIdOrderByRecordedAtDescIdDesc(systemId).orElse(null);
         return SystemListItemResponse.from(system, latestMetric, dataStatus(latestMetric));
+    }
+
+    private MonitoredSystem saveSystem(MonitoredSystem system) {
+        try {
+            return monitoredSystemRepository.saveAndFlush(system);
+        } catch (DataIntegrityViolationException exception) {
+            // A concurrent request can insert the identity after the pre-check.
+            for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+                if (cause.getMessage() != null && cause.getMessage().toLowerCase(java.util.Locale.ROOT)
+                        .contains("uk_monitored_systems_identity")) {
+                    throw new DuplicateMonitoredSystemException();
+                }
+            }
+            throw exception;
+        }
     }
 
     private String normaliseDescription(String description) {

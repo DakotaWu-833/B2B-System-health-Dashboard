@@ -11,6 +11,10 @@ import org.springframework.data.repository.query.Param;
 
 public interface MonitoredSystemRepository extends JpaRepository<MonitoredSystem, Long> {
 
+    boolean existsByNameAndTypeAndHost(String name, String type, String host);
+
+    boolean existsByNameAndTypeAndHostAndIdNot(String name, String type, String host, Long id);
+
     List<MonitoredSystem> findByStatus(HealthStatus status);
 
     long countByStatus(HealthStatus status);

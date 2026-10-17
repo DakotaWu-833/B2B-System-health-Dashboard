@@ -37,6 +37,27 @@ and 255. Description is optional, maximum 1000. Values are trimmed; blank or
 omitted description becomes null. PUT replaces these editable fields, so omitted
 description clears the old description. Health status is not an editable field.
 
+The composite identity is (trim(name), trim(type), trim(host)); description is not
+part of identity. Creating a duplicate or updating to another system's identity
+returns HTTP 409 with `A monitored system with the same name, type and host already exists`.
+Updating the current object's unchanged identity is permitted. String comparison
+uses the database's existing collation (MySQL may compare case/accent-insensitively).
+The entity and Flyway migration enforce uk_monitored_systems_identity; an identity
+race detected at flush is translated to the same safe 409 response.
+
+The new V2 migration trims legacy fields and adds the unique constraint;
+V1 is unchanged. Before upgrading an existing database, inspect duplicates:
+
+```sql
+SELECT TRIM(name), TRIM(type), TRIM(host), COUNT(*)
+FROM monitored_systems
+GROUP BY TRIM(name), TRIM(type), TRIM(host)
+HAVING COUNT(*) > 1;
+```
+
+Reconcile any duplicate records explicitly before migration; the migration does
+not delete or merge monitoring history. Back up existing data before upgrading.
+
 POST returns 201; PUT returns 200. Both return the existing ApiResponse envelope
 and a system list item (including description and the reading fields below). Invalid input
 returns 400; unknown update ID returns 404. Re-read GET /api/systems/{id} for the
@@ -104,3 +125,23 @@ PUT returns the same latest reading/freshness fields without changing the readin
 For the Dashboard owner: MetricRepository.findLatestForAllSystems() is available
 for reuse. Agree separately how stale/missing readings contribute to aggregates;
 this module does not modify DashboardService or the threshold contract.
+
+## PR #16 review verification (18 October 2026)
+
+Merged origin/develop-3 at cfb847f, preserving the evaluated-threshold contract and
+Sprint 2 UI. Resolved docs/api/api-contract.md by retaining both API additions.
+The backend regression run passed 105 tests (including the teammate's threshold
+tests). After assigning the migration its final V2 name, its V1-to-V2 upgrade
+test was rerun successfully.
+
+Ten live MySQL 8.4.11 checks passed: V2 upgrade; initial create; trimmed duplicate
+create=409; own-identity update=200; distinct identity create=201; conflicting
+update=409; rejected update preserves original; concurrent duplicate requests
+yield exactly one 201 and one 409; one identity remains in the database; direct
+SQL duplicate insertion is rejected with MySQL 1062.
+
+These checks used the dedicated verification database, not project/production data.
+One duplicate test artifact from the earlier harness was renamed before upgrade;
+no monitoring rows, metrics or alert history were deleted. The migration itself
+does not reconcile existing duplicates automatically. The temporary test backend
+was stopped after verification. Frontend integration and review remain separate.

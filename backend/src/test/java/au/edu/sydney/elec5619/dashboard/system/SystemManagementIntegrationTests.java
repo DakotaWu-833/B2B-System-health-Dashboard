@@ -34,6 +34,56 @@ class SystemManagementIntegrationTests {
     @Autowired
     private MonitoredSystemRepository monitoredSystemRepository;
 
+    @Test
+    void duplicateCreateAfterTrimmingReturns409WithoutAddingAnotherSystem() throws Exception {
+        monitoredSystemRepository.saveAndFlush(new MonitoredSystem(
+                "Orders API", "SERVICE", "orders.example", HealthStatus.HEALTHY, null));
+        mockMvc.perform(post("/api/systems").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":" Orders API ","type":" SERVICE ","host":" orders.example "}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("A monitored system with the same name, type and host already exists"));
+        assertThat(monitoredSystemRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void unchangedIdentityCanBeUpdated() throws Exception {
+        MonitoredSystem system = monitoredSystemRepository.saveAndFlush(new MonitoredSystem(
+                "Orders API", "SERVICE", "orders.example", HealthStatus.WARNING, null));
+        mockMvc.perform(put("/api/systems/{id}", system.getId()).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validRequest(" Orders API ", " orders.example ")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("WARNING"));
+        assertThat(monitoredSystemRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void updatingToAnotherSystemsIdentityReturns409AndPreservesOriginal() throws Exception {
+        monitoredSystemRepository.saveAndFlush(new MonitoredSystem(
+                "Orders API", "SERVICE", "orders.example", HealthStatus.HEALTHY, null));
+        MonitoredSystem other = monitoredSystemRepository.saveAndFlush(new MonitoredSystem(
+                "Other API", "SERVICE", "other.example", HealthStatus.CRITICAL, null));
+        mockMvc.perform(put("/api/systems/{id}", other.getId()).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validRequest(" Orders API ", " orders.example ")))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("A monitored system with the same name, type and host already exists"));
+        assertThat(monitoredSystemRepository.findById(other.getId()).orElseThrow().getName()).isEqualTo("Other API");
+    }
+
+    @Test
+    void sameNameWithDifferentHostIsNotADuplicate() throws Exception {
+        monitoredSystemRepository.saveAndFlush(new MonitoredSystem(
+                "Orders API", "SERVICE", "orders.example", HealthStatus.HEALTHY, null));
+        mockMvc.perform(post("/api/systems").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                        .content(validRequest("Orders API", "another.example")))
+                .andExpect(status().isCreated());
+        assertThat(monitoredSystemRepository.count()).isEqualTo(2);
+    }
+
     @Autowired
     private au.edu.sydney.elec5619.dashboard.metric.MetricRepository metricRepository;
 

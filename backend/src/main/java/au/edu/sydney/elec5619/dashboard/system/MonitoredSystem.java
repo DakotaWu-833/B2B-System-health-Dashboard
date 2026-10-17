@@ -9,6 +9,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -16,6 +19,7 @@ import jakarta.validation.constraints.Size;
 @Entity
 @Table(
         name = "monitored_systems",
+        uniqueConstraints = @UniqueConstraint(name = "uk_monitored_systems_identity", columnNames = {"name", "type", "host"}),
         indexes = @Index(name = "idx_monitored_systems_status", columnList = "status"))
 public class MonitoredSystem {
 
@@ -97,5 +101,13 @@ public class MonitoredSystem {
 
     public void changeStatus(HealthStatus status) {
         this.status = status;
+    }
+
+    @PrePersist
+    @PreUpdate
+    private void normalizeIdentity() {
+        if (name != null) name = name.trim();
+        if (type != null) type = type.trim();
+        if (host != null) host = host.trim();
     }
 }

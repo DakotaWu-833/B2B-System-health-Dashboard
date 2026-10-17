@@ -228,3 +228,43 @@ endpoints to Operations users.
 
 Metric data is stale when its timestamp is older than `app.metrics.stale-after`, which
 defaults to five minutes (`PT5M`).
+
+### Evaluated health thresholds (ELG2-25)
+
+`GET /api/systems/{id}` also returns `data.evaluatedThresholds`. Existing response
+fields are unchanged. This object exposes the current runtime configuration used
+by both the health-status calculator and the detail API's `statusReasons`, including
+environment-variable or Spring property overrides. The values are not hard-coded
+response defaults or a historical snapshot of the configuration when a reading
+was submitted. Returning thresholds does not recalculate the stored system status.
+
+With the default configuration, the additional field is:
+
+```json
+{
+  "evaluatedThresholds": {
+    "cpuWarning": 75.0,
+    "cpuCritical": 90.0,
+    "memoryWarning": 75.0,
+    "memoryCritical": 90.0,
+    "responseTimeWarning": 500,
+    "responseTimeCritical": 1000
+  }
+}
+```
+
+| Fields | Unit | Comparison |
+| --- | --- | --- |
+| `cpuWarning`, `cpuCritical` | CPU usage percent (0-100) | Reading `>=` threshold |
+| `memoryWarning`, `memoryCritical` | Memory usage percent (0-100) | Reading `>=` threshold |
+| `responseTimeWarning`, `responseTimeCritical` | Milliseconds | Reading `>=` threshold |
+
+Critical takes precedence over Warning for each metric. Unavailable readings retain
+only the `System is unavailable` reason, even if stale or above thresholds.
+Threshold configuration remains visible for `FRESH`, `STALE`, `NO_DATA` and offline
+readings; its presence does not mean a measurement exists or is fresh. Missing
+readings still return `latestMetric: null` and only the no-data reason. Stale
+available readings retain their stale warning and any threshold reasons.
+
+Access remains authenticated for both Operations and Management users. Unknown
+system IDs retain the existing `404` response.

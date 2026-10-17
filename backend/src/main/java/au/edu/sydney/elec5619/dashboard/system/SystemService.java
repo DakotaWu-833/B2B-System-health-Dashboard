@@ -70,7 +70,8 @@ public class SystemService {
                 system.getDescription(),
                 latestMetric == null ? null : MetricReadingResponse.from(latestMetric),
                 dataStatus,
-                statusReasons(latestMetric, dataStatus));
+                statusReasons(latestMetric, dataStatus),
+                thresholds);
     }
 
     @Transactional

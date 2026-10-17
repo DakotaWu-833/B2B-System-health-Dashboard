@@ -47,6 +47,18 @@ describe("App", () => {
         });
       }
 
+      if (url.startsWith("/api/alerts?")) {
+        return Promise.resolve({
+          ok: false,
+          status: 401,
+          json: async () => ({
+            success: false,
+            data: null,
+            message: "Authentication required",
+          }),
+        });
+      }
+
       return Promise.reject(new Error(`Unexpected request: ${url}`));
     });
 
@@ -110,6 +122,24 @@ describe("App", () => {
           json: async () => ({
             success: true,
             data: [],
+          }),
+        });
+      }
+
+      if (url.startsWith("/api/alerts?")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: {
+              items: [],
+              page: 0,
+              size: 5,
+              totalElements: 0,
+              totalPages: 0,
+              first: true,
+              last: true,
+            },
           }),
         });
       }

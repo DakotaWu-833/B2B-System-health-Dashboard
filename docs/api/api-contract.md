@@ -1,6 +1,6 @@
-# API Contract - Sprint 1 Draft
+# API Contract
 
-The team should review this draft before feature development. All JSON APIs use the `/api` prefix and the common response envelope below.
+All JSON APIs use the `/api` prefix and the common response envelope below.
 
 ```json
 {
@@ -10,7 +10,7 @@ The team should review this draft before feature development. All JSON APIs use 
 }
 ```
 
-## Planned endpoints
+## Implemented endpoints
 
 | Method | Endpoint | Access | Purpose |
 | --- | --- | --- | --- |
@@ -131,7 +131,7 @@ acknowledged alert to `RESOLVED`. An unknown alert ID returns `404 Not Found`.
 
 ## Authentication contract
 
-Sprint 1 uses a server-side HTTP session. The browser must include credentials on authentication requests. Before each state-changing request, call `GET /api/auth/csrf`, then send `data.token` in the header named by `data.headerName` (`X-CSRF-TOKEN`).
+The application uses a server-side HTTP session. The browser must include credentials on authentication requests. Before each state-changing request, call `GET /api/auth/csrf`, then send `data.token` in the header named by `data.headerName` (`X-CSRF-TOKEN`).
 
 ### Obtain a CSRF token
 
@@ -211,10 +211,9 @@ Cookie: JSESSIONID=...
 X-CSRF-TOKEN: generated-token
 ```
 
-The server invalidates the session and clears the session cookie. Sprint 1 stores the user
+The server invalidates the session and clears the session cookie. Authentication stores the user
 role, enforces authenticated versus public access, and restricts alert status mutation
-endpoints to Operations users. Complete endpoint-specific RBAC for the remaining APIs is
-outside the Sprint 1 authentication scope.
+endpoints to Operations users.
 
 ## Dashboard and system queries
 
@@ -235,3 +234,43 @@ defaults to five minutes (`PT5M`).
 See [system management and permission contract](../sprint-3/system-management-api.md)
 for POST /api/systems, PUT /api/systems/{id}, enriched GET /api/systems data,
 validation and role requirements.
+
+### Evaluated health thresholds (ELG2-25)
+
+`GET /api/systems/{id}` also returns `data.evaluatedThresholds`. Existing response
+fields are unchanged. This object exposes the current runtime configuration used
+by both the health-status calculator and the detail API's `statusReasons`, including
+environment-variable or Spring property overrides. The values are not hard-coded
+response defaults or a historical snapshot of the configuration when a reading
+was submitted. Returning thresholds does not recalculate the stored system status.
+
+With the default configuration, the additional field is:
+
+```json
+{
+  "evaluatedThresholds": {
+    "cpuWarning": 75.0,
+    "cpuCritical": 90.0,
+    "memoryWarning": 75.0,
+    "memoryCritical": 90.0,
+    "responseTimeWarning": 500,
+    "responseTimeCritical": 1000
+  }
+}
+```
+
+| Fields | Unit | Comparison |
+| --- | --- | --- |
+| `cpuWarning`, `cpuCritical` | CPU usage percent (0-100) | Reading `>=` threshold |
+| `memoryWarning`, `memoryCritical` | Memory usage percent (0-100) | Reading `>=` threshold |
+| `responseTimeWarning`, `responseTimeCritical` | Milliseconds | Reading `>=` threshold |
+
+Critical takes precedence over Warning for each metric. Unavailable readings retain
+only the `System is unavailable` reason, even if stale or above thresholds.
+Threshold configuration remains visible for `FRESH`, `STALE`, `NO_DATA` and offline
+readings; its presence does not mean a measurement exists or is fresh. Missing
+readings still return `latestMetric: null` and only the no-data reason. Stale
+available readings retain their stale warning and any threshold reasons.
+
+Access remains authenticated for both Operations and Management users. Unknown
+system IDs retain the existing `404` response.

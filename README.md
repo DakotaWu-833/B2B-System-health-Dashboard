@@ -22,6 +22,14 @@ Role-based access control is provided for two main user groups:
 
 The project aims to provide a **simple, practical, and easy-to-use monitoring solution** without introducing unnecessary infrastructure or highly complex monitoring technologies.
 
+### Sprint 2 demonstrator
+
+Sprint 2 adds a user-facing Alert Centre. Authenticated users can inspect,
+filter and page through alerts; Operations users can acknowledge or resolve
+them through CSRF-protected actions. The minimal rubric-mapped evidence pack,
+timed demo script and Q&A preparation are in
+[docs/sprint-2](docs/sprint-2/README.md).
+
 ---
 
 ## 2 Problem Statement
@@ -548,6 +556,7 @@ pnpm build
 ├── docs/
 │   ├── api/                 Shared API contract
 │   ├── sprint-1/            Contribution and retrospective evidence
+│   ├── sprint-2/            Rubric index, backlog, demo, contribution, retro and Q&A
 │   └── use-cases/           UML diagram and use-case briefs
 ├── docker-compose.yml       Local MySQL service
 ├── CONTRIBUTING.md          Branch and pull-request workflow

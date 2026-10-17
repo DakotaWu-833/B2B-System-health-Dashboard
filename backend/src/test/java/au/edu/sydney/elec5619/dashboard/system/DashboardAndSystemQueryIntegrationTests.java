@@ -159,6 +159,24 @@ class DashboardAndSystemQueryIntegrationTests {
     }
 
     @Test
+    @WithMockUser(username = "management-query-test-user", roles = "MANAGEMENT")
+    void returnsDefaultEvaluatedThresholdsForSystemDetails() throws Exception {
+        MonitoredSystem system = createSystem("Threshold API", HealthStatus.HEALTHY);
+
+        mockMvc.perform(get("/api/systems/{id}", system.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.evaluatedThresholds.cpuWarning").value(75.0))
+                .andExpect(jsonPath("$.data.evaluatedThresholds.cpuCritical").value(90.0))
+                .andExpect(jsonPath("$.data.evaluatedThresholds.memoryWarning").value(75.0))
+                .andExpect(jsonPath("$.data.evaluatedThresholds.memoryCritical").value(90.0))
+                .andExpect(jsonPath("$.data.evaluatedThresholds.responseTimeWarning").value(500))
+                .andExpect(jsonPath("$.data.evaluatedThresholds.responseTimeCritical").value(1000))
+                .andExpect(jsonPath("$.data.metricDataStatus").value("NO_DATA"))
+                .andExpect(jsonPath("$.data.statusReasons.length()").value(1))
+                .andExpect(jsonPath("$.data.statusReasons[0]").value("No metric data is available"));
+    }
+
+    @Test
     void returnsLatestMetricWithThresholdReasons() throws Exception {
         MonitoredSystem system = createSystem("Payments API", HealthStatus.CRITICAL);
         createMetric(system, "95.00", "70.00", 250L, true, Instant.now());

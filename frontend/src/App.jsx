@@ -111,15 +111,21 @@ function App() {
 
   return (
     <main className="app-shell">
-     <button type="button" onClick={handleLogout}>
-       Logout
-     </button>
+      <div className="session-bar">
+        <p>
+          Signed in as <strong>{currentUser.username}</strong>
+          <span className="role-badge">{currentUser.role}</span>
+        </p>
+        <button type="button" onClick={handleLogout}>
+          Logout
+        </button>
+      </div>
       <section className="hero" aria-labelledby="page-title">
-        <p className="eyebrow">ELEC5619 · Sprint 1 foundation</p>
+        <p className="eyebrow">ELEC5619 · Sprint 2 demonstrator</p>
         <h1 id="page-title">B2B System Health Dashboard</h1>
         <p className="hero-copy">
-          A shared React and Spring Boot foundation for the team&apos;s monitoring
-          dashboard. Feature work should be delivered through reviewed Jira branches.
+          Monitor service health, inspect recent metrics and triage live alerts
+          from one operational view.
         </p>
       </section>
 
@@ -159,7 +165,10 @@ function App() {
         </button>
       </section>
 
-      <Dashboard onSessionExpired={handleSessionExpired} />
+      <Dashboard
+        currentUser={currentUser}
+        onSessionExpired={handleSessionExpired}
+      />
     </main>
   );
 }

@@ -3,8 +3,8 @@
 ## Branches
 
 - `main` contains stable, demonstrable work.
-- `develop` is the Sprint integration branch.
-- Create one branch per Jira issue, for example `feature/SP1-04-authentication`.
+- `develop-3` is the current team integration branch.
+- Create one branch per Jira issue, for example `feature/ELG2-51-email-persistence`.
 - Do not commit feature work directly to `main`.
 
 ## Pull requests

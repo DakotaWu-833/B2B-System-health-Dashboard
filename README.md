@@ -208,7 +208,7 @@ Operations users will be able to view and update the status of alerts.
 
 For the first version, alerts will be displayed within the web application.
 
-External SMS, email, and third-party notification integrations are outside the initial project scope.
+External SMS and operational alert-notification integrations remain outside the initial scope. Sprint 3 adds SMTP email ownership verification for user profiles; local delivery can be exercised with Mailpit.
 
 ### 5.8 Historical Data
 
@@ -396,6 +396,7 @@ To ensure that the system can be realistically implemented within the semester, 
 - Threshold-based alerts
 - Alert status management
 - Persistent MySQL data storage
+- Current-user profiles and SMTP email ownership verification (Sprint 3)
 
 ### Out of Scope
 
@@ -404,7 +405,7 @@ The following features are not required for the initial implementation:
 - Complex monitoring agents installed on real production servers
 - Machine-learning-based anomaly detection
 - SMS notifications
-- Email notifications
+- Email notifications for monitoring alerts (profile verification is implemented)
 - Integration with external monitoring platforms
 - Cloud infrastructure deployment automation
 - Advanced predictive analytics
@@ -454,6 +455,9 @@ The project will prioritise a **reliable and functional implementation of the co
 ---
 
 ## 13 Development Quick Start
+
+Current integration: **develop-3**, stable delivery: **main**. See [Sprint 3 integration](docs/sprint-3/README.md) for the current API/UI scope and evidence.
+
 
 ### Prerequisites
 
@@ -506,7 +510,7 @@ Database schema changes are versioned in `backend/src/main/resources/db/migratio
 
 ```bash
 cd backend
-./mvnw spring-boot:run
+sh mvnw spring-boot:run
 ```
 
 On Windows PowerShell:
@@ -522,7 +526,7 @@ The backend is available at `http://localhost:8080`. Check `GET /api/health` bef
 
 ```bash
 cd frontend
-pnpm install
+pnpm install --frozen-lockfile
 pnpm dev
 ```
 
@@ -534,11 +538,11 @@ For a separately hosted backend, copy `frontend/.env.example` to `frontend/.env.
 
 ```bash
 cd backend
-./mvnw clean test
-./mvnw -Pdatabase-integration verify
+sh mvnw clean test
+sh mvnw -Pdatabase-integration verify
 ```
 
-The normal backend suite uses isolated H2 databases. The database integration profile additionally applies the Flyway migration to an empty H2 database in MySQL compatibility mode and validates the resulting schema against JPA. When Docker is available, it also runs the same startup validation against a disposable MySQL 8.4 container; otherwise that one test is reported as skipped.
+The normal backend suite uses isolated H2 databases. The database integration profile **requires Docker** and runs disposable MySQL 8.4 and Mailpit containers: fresh/populated migrations, concurrent APIs, precision constraints, email delivery/verification and capacity plans. A missing Docker daemon fails the required verification. Use `bash scripts/verify.sh` from the repository root for the full backend/frontend check. See [Sprint 3 setup and recovery](docs/sprint-3/local-verification.md) for two-role accounts, SMTP configuration and optional live demo readings.
 
 ```bash
 cd frontend

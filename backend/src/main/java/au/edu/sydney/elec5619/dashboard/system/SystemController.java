@@ -31,6 +31,13 @@ public class SystemController {
                 "Systems retrieved successfully");
     }
 
+    @GetMapping("/page")
+    public ApiResponse<au.edu.sydney.elec5619.dashboard.common.PagedResponse<SystemListItemResponse>> systemsPage(
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int page,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "20") int size) {
+        return ApiResponse.success(systemService.getSystemsPage(page, size), "Systems retrieved successfully");
+    }
+
     @GetMapping("/{systemId}")
     public ApiResponse<SystemDetailResponse> system(@PathVariable Long systemId) {
         return ApiResponse.success(

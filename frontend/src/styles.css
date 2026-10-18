@@ -20,7 +20,7 @@
   text-rendering: optimizeLegibility;
 }
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; background: var(--page-bg); }
+body { margin: 0; min-width: 0; background: var(--page-bg); }
 h1, h2, h3, p { margin-top: 0; }
 h1 { font-size: clamp(1.8rem, 3.5vw, 2.65rem); line-height: 1.15; letter-spacing: -0.035em; margin-bottom: 0.7rem; }
 h2 { font-size: 1.3rem; letter-spacing: -0.02em; margin-bottom: 1rem; }
@@ -199,3 +199,16 @@ textarea:focus-visible { outline: 3px solid #7a9dea; outline-offset: 3px; }
   .health-chart .health-chart-body svg { width: 160px; }
 }
 @media (prefers-reduced-motion: reduce) { button { transition: none; } }
+
+.form-panel { padding: 1.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; margin: 1rem 0; }
+.editor-form { display: grid; gap: 1rem; max-width: 600px; }
+.editor-form label { display: grid; gap: 0.4rem; font-weight: 600; }
+.editor-form input, .editor-form textarea { width: 100%; min-width: 0; padding: 0.75rem; border: 1px solid var(--border-strong); border-radius: 0.5rem; font: inherit; background: white; color: var(--text); }
+.verification-panel { display: grid; gap: 1rem; margin-top: 1.5rem; }
+.profile-panel { max-width: 780px; }
+.profile-panel dd { margin: 0.4rem 0 1rem; overflow-wrap: anywhere; }
+.history-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 1rem; margin: 1rem 0; }
+.history-controls label { display: grid; gap: 0.4rem; min-width: 0; }
+.history-controls input { max-width: 100%; min-width: 0; padding: 0.5rem; font: inherit; }
+@media (max-width: 720px) { .form-panel { padding: 1rem; } }
+@media (max-width: 400px) { .history-controls label { width: 100%; } }

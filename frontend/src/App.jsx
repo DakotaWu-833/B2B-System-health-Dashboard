@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Dashboard from "./Dashboard";
 import Login from "./Login";
+import Profile from "./Profile";
 import { apiFetch } from "./api";
 
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
+  const [view, setView] = useState("dashboard");
   const [health, setHealth] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -69,6 +71,7 @@ function App() {
   const handleSessionExpired = useCallback(() => {
     setLogoutError("");
     setCurrentUser(null);
+    setView("dashboard");
   }, []);
 
   async function handleLogout() {
@@ -79,7 +82,7 @@ function App() {
     try {
       const csrfResponse = await apiFetch("/api/auth/csrf");
 
-      if (csrfResponse.status === 401) { setCurrentUser(null); return; }
+      if (csrfResponse.status === 401) { handleSessionExpired(); return; }
 
       if (!csrfResponse.ok) {
         throw new Error(`Failed to get CSRF token: HTTP ${csrfResponse.status}`);
@@ -96,7 +99,7 @@ function App() {
       });
 
       if (logoutResponse.status === 401) {
-        setCurrentUser(null);
+        handleSessionExpired();
         return;
       }
 
@@ -107,7 +110,7 @@ function App() {
       const logoutResult = await logoutResponse.json();
       if (!logoutResult.success) throw new Error("Logout was not confirmed");
 
-      setCurrentUser(null);
+      handleSessionExpired();
     } catch (requestError) {
       console.error("Logout failed:", requestError);
       setLogoutError("Unable to log out. Check your connection and try Logout again.");
@@ -151,8 +154,9 @@ function App() {
       {logoutError && <p className="error-message" role="alert">{logoutError}</p>}
 
       <nav className="primary-nav" aria-label="Primary navigation">
-        <a href="#dashboard">Dashboard</a>
-        <a href="#alert-center-title">Alert Centre</a>
+        <a href="#dashboard" onClick={() => setView("dashboard")}>Dashboard</a>
+        <a href="#alert-center-title" onClick={() => setView("dashboard")}>Alert Centre</a>
+        <a href="#profile" onClick={() => setView("profile")}>My profile</a>
       </nav>
       <section className="hero" aria-labelledby="page-title">
         <h1 id="page-title">B2B System Health Dashboard</h1>
@@ -198,10 +202,10 @@ function App() {
         </button>
       </section>
 
-      <Dashboard
+      {view === "profile" ? <Profile onSessionExpired={handleSessionExpired} /> : <Dashboard
         currentUser={currentUser}
         onSessionExpired={handleSessionExpired}
-      />
+      />}
     </main>
   );
 }

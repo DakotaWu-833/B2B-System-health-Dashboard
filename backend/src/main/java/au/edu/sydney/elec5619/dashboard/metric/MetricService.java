@@ -1,6 +1,7 @@
 package au.edu.sydney.elec5619.dashboard.metric;
 
 import java.time.Instant;
+import au.edu.sydney.elec5619.dashboard.common.RetryingTransaction;
 
 import au.edu.sydney.elec5619.dashboard.alert.AlertService;
 import au.edu.sydney.elec5619.dashboard.system.HealthStatus;
@@ -21,20 +22,25 @@ public class MetricService {
     private final MonitoredSystemRepository monitoredSystemRepository;
     private final HealthStatusCalculator healthStatusCalculator;
     private final AlertService alertService;
+    private final RetryingTransaction transaction;
 
     public MetricService(
             MetricRepository metricRepository,
             MonitoredSystemRepository monitoredSystemRepository,
             HealthStatusCalculator healthStatusCalculator,
-            AlertService alertService) {
+            AlertService alertService, RetryingTransaction transaction) {
         this.metricRepository = metricRepository;
         this.monitoredSystemRepository = monitoredSystemRepository;
         this.healthStatusCalculator = healthStatusCalculator;
         this.alertService = alertService;
+        this.transaction = transaction;
     }
 
-    @Transactional
     public MetricResponse submitMetric(Long systemId, @Valid MetricSubmissionRequest request) {
+        return transaction.execute(() -> persistMetric(systemId, request));
+    }
+
+    private MetricResponse persistMetric(Long systemId, MetricSubmissionRequest request) {
         MonitoredSystem monitoredSystem = monitoredSystemRepository.findByIdForUpdate(systemId)
                 .orElseThrow(() -> new MonitoredSystemNotFoundException(systemId));
 

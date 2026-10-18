@@ -13,6 +13,9 @@ public class MetricFreshnessPolicy {
     private final Duration staleAfter;
 
     public MetricFreshnessPolicy(@Value("${app.metrics.stale-after:PT5M}") Duration staleAfter) {
+        if (staleAfter == null || staleAfter.isNegative() || staleAfter.isZero()) {
+            throw new IllegalArgumentException("app.metrics.stale-after must be a positive duration");
+        }
         this.staleAfter = staleAfter;
     }
 

@@ -35,7 +35,7 @@ describe("App", () => {
         });
       }
 
-      if (url === "/api/dashboard/summary" || url === "/api/systems") {
+      if (url === "/api/dashboard/summary" || url === "/api/systems/page?page=0&size=10") {
         return Promise.resolve({
           ok: false,
           status: 401,
@@ -116,7 +116,7 @@ describe("App", () => {
         });
       }
 
-      if (url === "/api/systems") {
+      if (url === "/api/systems/page?page=0&size=10") {
         return Promise.resolve({
           ok: true,
           json: async () => ({

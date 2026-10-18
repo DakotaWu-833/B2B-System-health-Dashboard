@@ -31,6 +31,19 @@ public class ApiExceptionHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
+    @ExceptionHandler(ApiProblemException.class)
+    public ResponseEntity<ApiResponse<Void>> handleApiProblem(ApiProblemException exception) {
+        var response = ResponseEntity.status(exception.status());
+        if (exception.retryAfter() > 0) response.header("Retry-After", String.valueOf(exception.retryAfter()));
+        return response.body(ApiResponse.failure(exception.getMessage()));
+    }
+
+    @ExceptionHandler(DatabaseBusyException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDatabaseBusy(DatabaseBusyException exception) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).header("Retry-After", "1")
+                .body(ApiResponse.failure(exception.getMessage()));
+    }
+
     @ExceptionHandler(DuplicateMonitoredSystemException.class)
     public ResponseEntity<ApiResponse<Void>> handleDuplicateSystem(DuplicateMonitoredSystemException exception) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.failure(exception.getMessage()));

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "./api";
 import { MetricTrend } from "./Charts";
 import { formatMetric, formatTime } from "./metricDisplay";
@@ -10,6 +10,47 @@ function SystemDetails({ system, currentUser, onSessionExpired, onMetricSubmitte
   const [error, setError] = useState("");
   const [reloadVersion, setReloadVersion] = useState(0);
   const [metricFeedback, setMetricFeedback] = useState(null);
+  const [historyCursor, setHistoryCursor] = useState(null);
+  const [historyBusy, setHistoryBusy] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [range, setRange] = useState({ from: "", to: "" });
+  const historyController = useRef(null);
+
+  const requestHistory = useCallback(async (systemId, query, { append = false, initial = false } = {}) => {
+    // Initial history, range changes and pagination share one cancellation boundary.
+    historyController.current?.abort();
+    const controller = new AbortController();
+    historyController.current = controller;
+    if (!initial) setHistoryBusy(true);
+    setHistoryError("");
+    try {
+      const response = await apiFetch(`/api/systems/${systemId}/metrics/history?${query}`, { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      if (response.status === 401) { onSessionExpired?.(); return; }
+      const result = await response.json();
+      if (controller.signal.aborted) return;
+      if (!response.ok || !result.success) throw new Error(result.message || "Failed to load system metrics.");
+      const readings = Array.isArray(result.data) ? result.data : result.data.items;
+      setMetrics(previous => append ? [...previous, ...readings] : readings);
+      setHistoryCursor(result.data.nextCursor || null);
+    } catch (failure) {
+      if (controller.signal.aborted) return;
+      const message = failure.message || "Failed to load system metrics.";
+      if (initial) setError(message); else setHistoryError(message);
+    } finally {
+      if (!controller.signal.aborted) setHistoryBusy(false);
+    }
+  }, [onSessionExpired]);
+
+  function loadHistory(append = false) {
+    const query = new URLSearchParams({ size: "20" });
+    if (append && historyCursor) query.set("cursor", historyCursor);
+    else {
+      if (range.from) query.set("from", new Date(range.from).toISOString());
+      if (range.to) query.set("to", new Date(range.to).toISOString());
+    }
+    return requestHistory(system.id, query, { append });
+  }
 
   async function handleMetricSubmitted(reading) {
     setMetricFeedback({ systemId: system.id, message: `Metric reading ${reading.metricId} submitted successfully.` });
@@ -26,6 +67,10 @@ function SystemDetails({ system, currentUser, onSessionExpired, onMetricSubmitte
     }
 
     const controller = new AbortController();
+    setHistoryCursor(null);
+    setHistoryBusy(false);
+    setHistoryError("");
+    setRange({ from: "", to: "" });
 
     setDetails(null);
     setMetrics([]);
@@ -61,39 +106,12 @@ function SystemDetails({ system, currentUser, onSessionExpired, onMetricSubmitte
         }
       });
 
-    apiFetch(`/api/systems/${system.id}/metrics`, {
-      signal: controller.signal,
-    })
-      .then((response) => {
-        if (controller.signal.aborted) return null;
-        if (response.status === 401) {
-          onSessionExpired?.();
-          return null;
-        }
-        return response.json();
-      })
-      .then((result) => {
-        if (!result || controller.signal.aborted) {
-          return;
-        }
-        if (result.success) {
-          setMetrics(result.data);
-        } else {
-          setMetrics([]);
-          setError(result.message || "Failed to load system metrics.");
-        }
-      })
-      .catch((error) => {
-        if (error.name !== "AbortError" && !controller.signal.aborted) {
-          console.error("Failed to load system metrics:", error);
-          setMetrics([]);
-          setError("Failed to load system metrics.");
-        }
-      });
+    requestHistory(system.id, new URLSearchParams({ size: "20" }), { initial: true });
     return () => {
       controller.abort();
+      historyController.current?.abort();
     };
-  }, [system, onSessionExpired, reloadVersion]);
+  }, [system, onSessionExpired, reloadVersion, requestHistory]);
 
   if (!system) {
     return null;
@@ -180,7 +198,7 @@ function SystemDetails({ system, currentUser, onSessionExpired, onMetricSubmitte
       </div>
       <section className="threshold-panel" aria-labelledby="threshold-title">
         <h3 id="threshold-title">Current health thresholds</h3>
-        <p className="section-copy">Current configured thresholds; a reading at or above a threshold triggers that level. Critical takes precedence over warning.</p>
+        <p className="section-copy">Current configured thresholds; a reading at or above a threshold triggers that level. Critical takes precedence over warning. Stored health is not recalculated when configuration changes.</p>
         {details.evaluatedThresholds ? <div className="table-wrapper"><table>
           <thead><tr><th>Metric</th><th>Warning at or above</th><th>Critical at or above</th></tr></thead>
           <tbody>{[
@@ -193,6 +211,15 @@ function SystemDetails({ system, currentUser, onSessionExpired, onMetricSubmitte
           </tr>)}</tbody>
         </table></div> : <p>Threshold configuration is unavailable.</p>}
       </section>
+      <form className="history-controls" onSubmit={event => { event.preventDefault(); loadHistory(); }}>
+        <label>History from<input type="datetime-local" value={range.from} disabled={historyBusy}
+          onChange={event => setRange({ ...range, from: event.target.value })} /></label>
+        <label>History to<input type="datetime-local" value={range.to} disabled={historyBusy}
+          onChange={event => setRange({ ...range, to: event.target.value })} /></label>
+        <button disabled={historyBusy}>Apply history range</button>
+      </form>
+      <p className="section-description">Default range: last 7 days. Select up to 31 days. All readings show measurement times.</p>
+      {historyError && <p role="alert" className="error-message">{historyError}</p>}
       <div className="metric-chart-grid">
         <MetricTrend title="Resource usage" metrics={metrics} unit="%" maximum={100}
           series={[
@@ -203,6 +230,8 @@ function SystemDetails({ system, currentUser, onSessionExpired, onMetricSubmitte
           series={[{ key: "responseTime", label: "Response time", color: "#8756b7" }]} />
       </div>
       <h3>Recent Metrics</h3>
+      {historyCursor && <button type="button" className="button-secondary" disabled={historyBusy}
+        onClick={() => loadHistory(true)}>{historyBusy ? "Loading history…" : "Load older readings"}</button>}
 
       <div className="table-wrapper">
         <table>

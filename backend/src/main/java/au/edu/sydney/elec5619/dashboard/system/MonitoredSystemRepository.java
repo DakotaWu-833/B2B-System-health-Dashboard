@@ -11,6 +11,10 @@ import org.springframework.data.repository.query.Param;
 
 public interface MonitoredSystemRepository extends JpaRepository<MonitoredSystem, Long> {
 
+    List<MonitoredSystem> findTop501ByOrderByIdAsc();
+
+    List<MonitoredSystem> findByHostIn(java.util.Collection<String> hosts);
+
     boolean existsByNameAndTypeAndHost(String name, String type, String host);
 
     boolean existsByNameAndTypeAndHostAndIdNot(String name, String type, String host, Long id);

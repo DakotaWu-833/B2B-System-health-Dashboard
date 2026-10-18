@@ -25,3 +25,7 @@ backend/src/main/resources/application-local.yml
 # Logs and test output
 *.log
 coverage/
+
+# Browser acceptance captures and local CLI session state
+output/playwright/
+.playwright-cli/

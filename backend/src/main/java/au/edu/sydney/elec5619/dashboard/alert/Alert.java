@@ -24,7 +24,9 @@ import jakarta.validation.constraints.Size;
         name = "alerts",
         indexes = {
             @Index(name = "idx_alerts_system_status", columnList = "system_id, status"),
-            @Index(name = "idx_alerts_created_time", columnList = "created_time")
+            @Index(name = "idx_alerts_created_time", columnList = "created_time"),
+            @Index(name = "idx_alerts_status_time", columnList = "status, created_time, alert_id"),
+            @Index(name = "idx_alerts_system_type_status_time", columnList = "system_id, alert_type, status, created_time, alert_id")
         })
 public class Alert {
 

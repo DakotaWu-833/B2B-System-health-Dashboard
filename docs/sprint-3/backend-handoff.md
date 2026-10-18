@@ -1,5 +1,7 @@
 # Sprint 3 backend handoff
 
+> The sections below are dated historical handoff records. For the current develop-3 implementation and Docker/browser results, see [Sprint 3 integration](README.md) and [verification](verification.md).
+
 ## Implemented locally
 
 - POST /api/systems and PUT /api/systems/{id}, validated request DTO and transactional persistence.

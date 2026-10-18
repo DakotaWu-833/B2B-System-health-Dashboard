@@ -37,11 +37,12 @@ public class SystemService {
 
     @Transactional(readOnly = true)
     public List<SystemListItemResponse> getSystems() {
-        List<MonitoredSystem> systems = monitoredSystemRepository.findAll(Sort.by("id"));
+        List<MonitoredSystem> systems = monitoredSystemRepository.findTop501ByOrderByIdAsc();
+        if (systems.size() > 500) throw new au.edu.sydney.elec5619.dashboard.common.InvalidPageRequestException("Use /api/systems/page for more than 500 systems");
         if (systems.isEmpty()) {
             return List.of();
         }
-        Map<Long, Metric> latest = metricRepository.findLatestForAllSystems().stream()
+        Map<Long, Metric> latest = metricRepository.findLatestForSystems(systems.stream().map(MonitoredSystem::getId).toList()).stream()
                 .collect(Collectors.toMap(m -> m.getMonitoredSystem().getId(), Function.identity()));
         Instant evaluatedAt = Instant.now();
         return systems.stream()
@@ -51,6 +52,18 @@ public class SystemService {
                             system, metric, freshnessPolicy.dataStatus(metric, evaluatedAt));
                 })
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public au.edu.sydney.elec5619.dashboard.common.PagedResponse<SystemListItemResponse> getSystemsPage(int page, int size) {
+        var request = au.edu.sydney.elec5619.dashboard.common.PageRequests.bounded(page, size, Sort.by("id"));
+        var systems = monitoredSystemRepository.findAll(request);
+        var ids = systems.getContent().stream().map(MonitoredSystem::getId).toList();
+        Map<Long, Metric> latest = ids.isEmpty() ? Map.of() : metricRepository.findLatestForSystems(ids).stream()
+                .collect(Collectors.toMap(m -> m.getMonitoredSystem().getId(), Function.identity()));
+        Instant now = Instant.now();
+        return au.edu.sydney.elec5619.dashboard.common.PagedResponse.from(systems.map(system ->
+                SystemListItemResponse.from(system, latest.get(system.getId()), freshnessPolicy.dataStatus(latest.get(system.getId()), now))));
     }
 
     @Transactional(readOnly = true)

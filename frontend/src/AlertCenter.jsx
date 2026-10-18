@@ -24,7 +24,8 @@ function emptyPage() {
   };
 }
 
-function AlertCenter({ currentUser, onSessionExpired, onAlertsChanged, systems = [], refreshVersion = 0 }) {
+function AlertCenter({ currentUser, onSessionExpired, onAlertsChanged, systems = [], refreshVersion = 0,
+  onLoadMoreSystems, hasMoreSystems = false, systemsLoading = false, systemsError = "" }) {
   const [statusFilter, setStatusFilter] = useState("ACTIVE");
   const [systemFilter, setSystemFilter] = useState("");
   const [alertPage, setAlertPage] = useState(emptyPage);
@@ -170,6 +171,10 @@ function AlertCenter({ currentUser, onSessionExpired, onAlertsChanged, systems =
             <option value="">All systems</option>
             {systems.map((system) => <option key={system.id} value={system.id}>{system.name}</option>)}
           </select>
+          {hasMoreSystems && <button type="button" className="button-secondary button-small"
+            disabled={systemsLoading || actionAlertId !== null} onClick={onLoadMoreSystems}>
+            {systemsLoading ? "Loading systems…" : "Load more filter systems"}
+          </button>}
           <label htmlFor="alert-status">Status</label>
           <select
             id="alert-status"
@@ -200,6 +205,7 @@ function AlertCenter({ currentUser, onSessionExpired, onAlertsChanged, systems =
           resolve alerts.
         </p>
       )}
+      {systemsError && <p className="error-message" role="alert">{systemsError}</p>}
 
       {feedback && (
         <p className="success-message" role="status" aria-live="polite">

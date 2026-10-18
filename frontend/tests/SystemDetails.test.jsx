@@ -147,7 +147,7 @@ describe("SystemDetails", () => {
         });
       }
 
-      if (url === "/api/systems/1/metrics") {
+      if (url === "/api/systems/1/metrics/history?size=20") {
         return new Promise((resolve, reject) => {
           resolveFirstMetrics = resolve;
 
@@ -172,7 +172,7 @@ describe("SystemDetails", () => {
         });
       }
 
-      if (url === "/api/systems/2/metrics") {
+      if (url === "/api/systems/2/metrics/history?size=20") {
         return Promise.resolve({
           ok: true,
           json: async () => ({

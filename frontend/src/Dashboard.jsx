@@ -6,9 +6,17 @@ import { apiFetch } from "./api";
 import SystemForm from "./SystemForm";
 import { formatMetric, formatTime } from "./metricDisplay";
 
+const PAGE_SIZE = 10;
+
 function Dashboard({ currentUser, onSessionExpired }) {
   const [selectedSystem, setSelectedSystem] = useState(null);
   const [systems, setSystems] = useState([]);
+  const [pagination, setPagination] = useState({ page: 0, totalPages: 0, totalElements: 0, first: true, last: true });
+  const [alertSystems, setAlertSystems] = useState([]);
+  const [filterPage, setFilterPage] = useState(0);
+  const [filterLoading, setFilterLoading] = useState(false);
+  const [filterError, setFilterError] = useState("");
+  const filterController = useRef(null);
   const [summary, setSummary] = useState({
     total: 0,
     healthy: 0,
@@ -22,26 +30,35 @@ function Dashboard({ currentUser, onSessionExpired }) {
   const [feedback, setFeedback] = useState("");
   const [summaryError, setSummaryError] = useState("");
   const summaryRequest = useRef(0);
+  const dashboardRequest = useRef(0);
+  const requestController = useRef(null);
   const [alertRefreshVersion, setAlertRefreshVersion] = useState(0);
   const canManageSystems = currentUser?.role === "OPERATIONS";
 
   async function handleSystemSaved(savedSystem) {
     setForm(null);
     setFeedback(`${savedSystem.name} ${form.system ? "updated" : "created"} successfully.`);
-    await loadDashboard();
+    setAlertSystems(previous => Array.from(new Map([...previous, savedSystem].map(system => [system.id, system])).values()));
+    await loadDashboard({ page: pagination.page });
   }
 
-  const loadDashboard = useCallback(async ({ background = false } = {}) => {
+  const loadDashboard = useCallback(async ({ background = false, page = 0 } = {}) => {
+    const dashboardId = ++dashboardRequest.current;
     const requestId = ++summaryRequest.current;
+    requestController.current?.abort();
+    const controller = new AbortController();
+    requestController.current = controller;
+    const isCurrent = () => dashboardId === dashboardRequest.current && !controller.signal.aborted;
     if (!background) setIsLoading(true);
     setError("");
 
     try {
       const [summaryResponse, systemsResponse] = await Promise.all([
-        apiFetch("/api/dashboard/summary"),
-        apiFetch("/api/systems"),
+        apiFetch("/api/dashboard/summary", { signal: controller.signal }),
+        apiFetch(`/api/systems/page?page=${page}&size=${PAGE_SIZE}`, { signal: controller.signal }),
       ]);
 
+      if (!isCurrent()) return;
       if (summaryResponse.status === 401 || systemsResponse.status === 401) {
         onSessionExpired?.();
         return;
@@ -53,6 +70,7 @@ function Dashboard({ currentUser, onSessionExpired }) {
 
       const summaryResult = await summaryResponse.json();
       const systemsResult = await systemsResponse.json();
+      if (!isCurrent()) return;
 
       if (!summaryResult.success || !systemsResult.success) {
         throw new Error("Backend returned an unsuccessful response.");
@@ -62,26 +80,38 @@ function Dashboard({ currentUser, onSessionExpired }) {
         setSummary(summaryResult.data);
         setSummaryError("");
       }
-      setSystems(systemsResult.data);
-      if (!background) setSelectedSystem((currentSystem) => {
+      const systemPage = Array.isArray(systemsResult.data)
+        ? { items: systemsResult.data, page: 0, totalPages: systemsResult.data.length ? 1 : 0,
+            totalElements: systemsResult.data.length, first: true, last: true }
+        : systemsResult.data;
+      if (systemPage.page > 0 && systemPage.page >= systemPage.totalPages) {
+        await loadDashboard({ background, page: Math.max(0, systemPage.totalPages - 1) });
+        return;
+      }
+      setSystems(systemPage.items);
+      setPagination(systemPage);
+      setAlertSystems(previous => Array.from(new Map([...previous, ...systemPage.items].map(system => [system.id, system])).values()));
+      setFilterPage(0);
+      setSelectedSystem((currentSystem) => {
         if (!currentSystem) {
           return null;
         }
-        return systemsResult.data.find(
+        return systemPage.items.find(
           (system) => system.id === currentSystem.id
         ) ?? null;
       });
     } catch (requestError) {
+      if (!isCurrent()) return;
       console.error("Failed to load dashboard:", requestError);
       if (background) setSummaryError("The reading was saved, but dashboard data could not be refreshed. Refresh the dashboard to retry.");
       else setError("Unable to load dashboard data. Please try again.");
     } finally {
-      if (!background) setIsLoading(false);
+      if (isCurrent()) setIsLoading(false);
     }
   }, [onSessionExpired]);
 
   async function handleMetricSubmitted() {
-    await loadDashboard({ background: true });
+    await loadDashboard({ background: true, page: pagination.page });
     setAlertRefreshVersion((version) => version + 1);
   }
 
@@ -100,7 +130,37 @@ function Dashboard({ currentUser, onSessionExpired }) {
 
   useEffect(() => {
     loadDashboard();
+    return () => {
+      dashboardRequest.current += 1;
+      summaryRequest.current += 1;
+      requestController.current?.abort();
+      filterController.current?.abort();
+    };
   }, [loadDashboard]);
+
+  // Load additional filter options on demand, with the same bounded API used by the table.
+  async function loadMoreFilterSystems() {
+    if (filterLoading) return;
+    filterController.current?.abort();
+    const controller = new AbortController();
+    filterController.current = controller;
+    setFilterLoading(true); setFilterError("");
+    try {
+      const response = await apiFetch(`/api/systems/page?page=${filterPage}&size=100`, { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      if (response.status === 401) { onSessionExpired?.(); return; }
+      const result = await response.json();
+      if (controller.signal.aborted) return;
+      if (!response.ok || !result.success) throw new Error();
+      const items = Array.isArray(result.data) ? result.data : result.data.items;
+      setAlertSystems(previous => Array.from(new Map([...previous, ...items].map(system => [system.id, system])).values()));
+      setFilterPage(page => page + 1);
+    } catch {
+      if (!controller.signal.aborted) setFilterError("Unable to load more systems. Please try again.");
+    } finally {
+      if (!controller.signal.aborted) setFilterLoading(false);
+    }
+  }
 
   return (
     <section className="dashboard" id="dashboard">
@@ -112,7 +172,7 @@ function Dashboard({ currentUser, onSessionExpired }) {
             Current status across all monitored services and servers.
           </p>
         </div>
-        <button type="button" onClick={() => loadDashboard()} disabled={isLoading || Boolean(form)}>
+        <button type="button" onClick={() => loadDashboard({ page: pagination.page })} disabled={isLoading || Boolean(form)}>
           {isLoading ? "Refreshing dashboard…" : "Refresh dashboard"}
         </button>
       </div>
@@ -242,6 +302,13 @@ function Dashboard({ currentUser, onSessionExpired }) {
                   </table>
                 </div>
               )}
+              {pagination.totalPages > 0 && <nav className="pagination" aria-label="System pages">
+                <button type="button" className="button-secondary" disabled={pagination.first || isLoading || Boolean(form)}
+                  onClick={() => loadDashboard({ page: pagination.page - 1 })}>Previous systems</button>
+                <span>Systems page {pagination.page + 1} of {pagination.totalPages} · {pagination.totalElements} systems</span>
+                <button type="button" className="button-secondary" disabled={pagination.last || isLoading || Boolean(form)}
+                  onClick={() => loadDashboard({ page: pagination.page + 1 })}>Next systems</button>
+              </nav>}
             </section>
           </div>
 
@@ -257,7 +324,11 @@ function Dashboard({ currentUser, onSessionExpired }) {
               currentUser={currentUser}
               onSessionExpired={onSessionExpired}
               onAlertsChanged={refreshSummary}
-              systems={systems}
+              systems={alertSystems.length ? alertSystems : systems}
+              onLoadMoreSystems={loadMoreFilterSystems}
+              hasMoreSystems={alertSystems.length < pagination.totalElements}
+              systemsLoading={filterLoading}
+              systemsError={filterError}
               refreshVersion={alertRefreshVersion}
             />
           )}

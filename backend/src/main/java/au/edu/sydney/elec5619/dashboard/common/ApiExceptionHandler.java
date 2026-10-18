@@ -5,6 +5,7 @@ import java.util.stream.Collectors;
 import au.edu.sydney.elec5619.dashboard.alert.AlertNotFoundException;
 import au.edu.sydney.elec5619.dashboard.alert.InvalidAlertStatusTransitionException;
 import au.edu.sydney.elec5619.dashboard.system.MonitoredSystemNotFoundException;
+import au.edu.sydney.elec5619.dashboard.system.DuplicateMonitoredSystemException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
@@ -29,6 +30,11 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 public class ApiExceptionHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ApiExceptionHandler.class);
+
+    @ExceptionHandler(DuplicateMonitoredSystemException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDuplicateSystem(DuplicateMonitoredSystemException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.failure(exception.getMessage()));
+    }
 
     @ExceptionHandler(InvalidPageRequestException.class)
     public ResponseEntity<ApiResponse<Void>> handleInvalidPageRequest(

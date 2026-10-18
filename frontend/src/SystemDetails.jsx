@@ -1,11 +1,21 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "./api";
 import { MetricTrend } from "./Charts";
+import { formatMetric, formatTime } from "./metricDisplay";
+import MetricForm from "./MetricForm";
 
-function SystemDetails({ system, onSessionExpired }) {
+function SystemDetails({ system, currentUser, onSessionExpired, onMetricSubmitted }) {
   const [details, setDetails] = useState(null);
   const [metrics, setMetrics] = useState([]);
   const [error, setError] = useState("");
+  const [reloadVersion, setReloadVersion] = useState(0);
+  const [metricFeedback, setMetricFeedback] = useState(null);
+
+  async function handleMetricSubmitted(reading) {
+    setMetricFeedback({ systemId: system.id, message: `Metric reading ${reading.metricId} submitted successfully.` });
+    setReloadVersion((version) => version + 1);
+    await onMetricSubmitted?.();
+  }
 
   useEffect(() => {
     if (!system) {
@@ -25,6 +35,7 @@ function SystemDetails({ system, onSessionExpired }) {
       signal: controller.signal,
     })
       .then((response) => {
+        if (controller.signal.aborted) return null;
         if (response.status === 401) {
           onSessionExpired?.();
           return null;
@@ -32,7 +43,7 @@ function SystemDetails({ system, onSessionExpired }) {
         return response.json();
       })
       .then((result) => {
-        if (!result) {
+        if (!result || controller.signal.aborted) {
           return;
         }
         if (result.success) {
@@ -43,7 +54,7 @@ function SystemDetails({ system, onSessionExpired }) {
         }
       })
       .catch((error) => {
-        if (error.name !== "AbortError") {
+        if (error.name !== "AbortError" && !controller.signal.aborted) {
           console.error("Failed to load system details:", error);
           setDetails(null);
           setError("Failed to load system details.");
@@ -54,6 +65,7 @@ function SystemDetails({ system, onSessionExpired }) {
       signal: controller.signal,
     })
       .then((response) => {
+        if (controller.signal.aborted) return null;
         if (response.status === 401) {
           onSessionExpired?.();
           return null;
@@ -61,7 +73,7 @@ function SystemDetails({ system, onSessionExpired }) {
         return response.json();
       })
       .then((result) => {
-        if (!result) {
+        if (!result || controller.signal.aborted) {
           return;
         }
         if (result.success) {
@@ -72,7 +84,7 @@ function SystemDetails({ system, onSessionExpired }) {
         }
       })
       .catch((error) => {
-        if (error.name !== "AbortError") {
+        if (error.name !== "AbortError" && !controller.signal.aborted) {
           console.error("Failed to load system metrics:", error);
           setMetrics([]);
           setError("Failed to load system metrics.");
@@ -81,7 +93,7 @@ function SystemDetails({ system, onSessionExpired }) {
     return () => {
       controller.abort();
     };
-  }, [system, onSessionExpired]);
+  }, [system, onSessionExpired, reloadVersion]);
 
   if (!system) {
     return null;
@@ -94,6 +106,7 @@ function SystemDetails({ system, onSessionExpired }) {
         <p className="error-message" role="alert">
           {error}
         </p>
+        <button type="button" onClick={() => setReloadVersion((version) => version + 1)}>Retry system details</button>
       </section>
     );
   }
@@ -110,6 +123,7 @@ function SystemDetails({ system, onSessionExpired }) {
   return (
     <section className="system-details">
       <h2>System Details</h2>
+      {metricFeedback?.systemId === system.id && <p className="success-message" role="status">{metricFeedback.message}</p>}
 
       <div className="system-details-card">
         <div className="detail-card-header">
@@ -142,8 +156,14 @@ function SystemDetails({ system, onSessionExpired }) {
             <strong>Description</strong>
             <span>{details.description || "No description available."}</span>
           </p>
+          <p><strong>Last measured</strong><span>{formatTime(details.latestMetric?.timestamp)}</span></p>
         </div>
+        {details.metricDataStatus === "NO_DATA" && <p className="permission-note">No measurements are available. The stored health status does not confirm measured health.</p>}
+        {details.metricDataStatus === "STALE" && <p className="permission-note">Latest measurements are stale and may not reflect current health.</p>}
       </div>
+
+      {currentUser?.role === "OPERATIONS" && <MetricForm key={system.id} system={system}
+        onSubmitted={handleMetricSubmitted} onSessionExpired={onSessionExpired} />}
 
       <div className="status-reasons">
         <strong>Reasons:</strong>
@@ -158,6 +178,21 @@ function SystemDetails({ system, onSessionExpired }) {
           <p>No threshold issue detected.</p>
         )}
       </div>
+      <section className="threshold-panel" aria-labelledby="threshold-title">
+        <h3 id="threshold-title">Current health thresholds</h3>
+        <p className="section-copy">Current configured thresholds; a reading at or above a threshold triggers that level. Critical takes precedence over warning.</p>
+        {details.evaluatedThresholds ? <div className="table-wrapper"><table>
+          <thead><tr><th>Metric</th><th>Warning at or above</th><th>Critical at or above</th></tr></thead>
+          <tbody>{[
+            ["CPU", "cpuWarning", "cpuCritical", "%"],
+            ["Memory", "memoryWarning", "memoryCritical", "%"],
+            ["Response time", "responseTimeWarning", "responseTimeCritical", " ms"],
+          ].map(([label, warning, critical, unit]) => <tr key={label}>
+            <th scope="row">{label}</th><td>{formatMetric(details.evaluatedThresholds[warning], unit)}</td>
+            <td>{formatMetric(details.evaluatedThresholds[critical], unit)}</td>
+          </tr>)}</tbody>
+        </table></div> : <p>Threshold configuration is unavailable.</p>}
+      </section>
       <div className="metric-chart-grid">
         <MetricTrend title="Resource usage" metrics={metrics} unit="%" maximum={100}
           series={[

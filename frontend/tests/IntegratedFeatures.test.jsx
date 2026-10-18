@@ -17,11 +17,11 @@ test("paged systems retain real zeros, missing metrics and management read-only 
   const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(url => Promise.resolve(reply(
     url === "/api/dashboard/summary" ? summary : url.startsWith("/api/systems/page") ? paged([system]) : emptyAlerts)));
   render(<Dashboard currentUser={{ role: "MANAGEMENT" }} />);
-  await screen.findByText("Integrated API");
-  expect(screen.getByText("No measurements")).toBeInTheDocument();
-  expect(screen.getByText("Not measured")).toBeInTheDocument();
+  const row = await screen.findByRole("button", { name: /Integrated API.*SERVICE/ });
+  expect(within(row).getAllByText("No data")).toHaveLength(3);
+  expect(within(row).getByText("No measurement")).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Average CPU" }).parentElement).toHaveTextContent("0%");
-  expect(screen.getByRole("heading", { name: "Average memory" }).parentElement).toHaveTextContent("No fresh data");
+  expect(screen.getByRole("heading", { name: "Average memory" }).parentElement).toHaveTextContent("No data");
   expect(screen.queryByRole("button", { name: "Add system" })).not.toBeInTheDocument();
   expect(fetch.mock.calls.some(([url]) => url === "/api/systems")).toBe(false);
 });
@@ -32,8 +32,8 @@ test("system page navigation requests only the next bounded page", async () => {
     url.startsWith("/api/systems/page") ? paged([system], { last: false, totalPages: 2, totalElements: 11 }) : emptyAlerts)));
   render(<Dashboard currentUser={{ role: "MANAGEMENT" }} />);
   fireEvent.click(await screen.findByRole("button", { name: "Next systems" }));
-  expect(await screen.findByText("Second page API")).toBeInTheDocument();
-  expect(screen.queryByText("Integrated API")).not.toBeInTheDocument();
+  expect(await screen.findByRole("button", { name: /Second page API.*SERVICE/ })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /Integrated API.*SERVICE/ })).not.toBeInTheDocument();
   expect(fetch).toHaveBeenCalledWith("/api/systems/page?page=1&size=10", expect.objectContaining({ credentials: "include" }));
 });
 
@@ -58,11 +58,12 @@ test("system form preserves input on 409 and uses a fresh CSRF token", async () 
   const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(url => Promise.resolve(url === "/api/auth/csrf" ?
     reply({ token: "fresh", headerName: "X-CSRF-TOKEN" }) : reply(null, 409, "Duplicate system")));
   render(<SystemForm onSaved={saved} onCancel={vi.fn()} />);
-  fireEvent.change(screen.getByLabelText("System name"), { target: { value: "Existing API" } });
-  fireEvent.change(screen.getByLabelText("Host or identifier"), { target: { value: "existing.test" } });
-  fireEvent.click(screen.getByRole("button", { name: "Save system" }));
-  expect(await screen.findByRole("alert")).toHaveTextContent("Duplicate system");
-  expect(screen.getByLabelText("System name")).toHaveValue("Existing API");
+  fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Existing API" } });
+  fireEvent.change(screen.getByLabelText("Type"), { target: { value: "SERVICE" } });
+  fireEvent.change(screen.getByLabelText("Host"), { target: { value: "existing.test" } });
+  fireEvent.click(screen.getByRole("button", { name: "Create system" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("already exists");
+  expect(screen.getByLabelText("Name")).toHaveValue("Existing API");
   expect(saved).not.toHaveBeenCalled();
   expect(fetch).toHaveBeenCalledWith("/api/systems", expect.objectContaining({ method: "POST", headers: expect.objectContaining({ "X-CSRF-TOKEN": "fresh" }) }));
 });
@@ -112,7 +113,7 @@ test("detail uses returned thresholds and follows the server history cursor", as
   vi.spyOn(globalThis, "fetch").mockImplementation(url => Promise.resolve(reply(url === "/api/systems/1" ? details :
     { items: [{ metricId: url.includes("cursor") ? 2 : 1, timestamp: "2026-10-18T00:00:00Z", cpuUsage: url.includes("cursor") ? 30 : 20, memoryUsage: 10, responseTime: 100, availability: true }], nextCursor: url.includes("cursor") ? null : "opaque-cursor", hasMore: !url.includes("cursor") })));
   render(<SystemDetails system={system} />);
-  expect(await screen.findByText("Warning ≥ 70%")).toBeInTheDocument();
+  expect(await screen.findByRole("row", { name: "CPU 70% 90%" })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Load older readings" }));
   expect(await screen.findByText("30%")).toBeInTheDocument();
   expect(screen.getByText("20%")).toBeInTheDocument();

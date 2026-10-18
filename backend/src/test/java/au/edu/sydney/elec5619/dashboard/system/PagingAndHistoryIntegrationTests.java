@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import au.edu.sydney.elec5619.dashboard.metric.*;
 import au.edu.sydney.elec5619.dashboard.alert.AlertRepository;
@@ -37,7 +38,8 @@ class PagingAndHistoryIntegrationTests {
         assertThat(read("/api/systems/page?page=2&size=5").get("items").size()).isEqualTo(2);
     }
     @Test void stableCursorCanReadBeyondOneHundredWithoutDuplicatesDuringNewInserts() throws Exception {
-        var system = system("history"); Instant same = Instant.now().minusSeconds(600);
+        // DATETIME(6) stores microseconds; keep the managed fixture and persisted cursor keys identical.
+        var system = system("history"); Instant same = Instant.now().minusSeconds(600).truncatedTo(ChronoUnit.MICROS);
         Set<Long> expected = new HashSet<>();
         for (int i=0;i<125;i++) expected.add(metric(system, same).getId());
         JsonNode page = read("/api/systems/"+system.getId()+"/metrics/history?size=20");

@@ -136,7 +136,7 @@ describe("Data display and accessible navigation", () => {
     const system = { id: 2, name: "Keyboard API", type: "SERVICE", host: "keyboard.test", status: "HEALTHY" };
     const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(url => Promise.resolve(response(
       url === "/api/dashboard/summary" ? { total: 1, healthy: 1, warning: 0, critical: 0, offline: 0 } :
-      url === "/api/systems/page?page=0&size=10" ? [system] : url.includes("/metrics") ? [] : { ...system, metricDataStatus: "NO_DATA", statusReasons: ["No metric data is available"] }
+      url.startsWith("/api/systems/page") ? page([system]) : url.includes("/metrics/history?") ? { items: [] } : { ...system, metricDataStatus: "NO_DATA", statusReasons: ["No metric data is available"] }
     )));
     render(<Dashboard />);
     fireEvent.keyDown(await screen.findByRole("button", { name: /Keyboard API/ }), { key: "Enter" });
@@ -145,7 +145,7 @@ describe("Data display and accessible navigation", () => {
   });
   test("detail metrics retain health reasons, raw records and both trend charts", async () => {
     const system = { id: 2, name: "Metrics API", status: "WARNING", type: "SERVICE", host: "metrics.test" };
-    vi.spyOn(globalThis, "fetch").mockImplementation(url => Promise.resolve(response(url.includes("/metrics") ?
+    vi.spyOn(globalThis, "fetch").mockImplementation(url => Promise.resolve(response(url.includes("/metrics/history?") ?
       [{ metricId: 1, timestamp: "2026-10-18T00:00:00Z", cpuUsage: 80, memoryUsage: 70, responseTime: 600, availability: true }] :
       { ...system, metricDataStatus: "STALE", statusReasons: ["Latest metric data is stale"] })));
     render(<SystemDetails system={system} />);
@@ -166,7 +166,7 @@ describe("Data display and accessible navigation", () => {
       url === "/api/auth/me" ? { username: "qa.manager", role: "MANAGEMENT" } :
       url === "/api/health" ? { status: "UP", service: "test", timestamp: "2026-10-18T00:00:00Z" } :
       url === "/api/dashboard/summary" ? { total: 0, healthy: 0, warning: 0, critical: 0, offline: 0 } :
-      url === "/api/systems/page?page=0&size=10" ? [] : page([]))));
+      url.startsWith("/api/systems/page") ? page([]) : page([]))));
     render(<App />);
     const link = await screen.findByRole("link", { name: "Alert Centre" });
     await screen.findByRole("heading", { name: "Alert Centre" });

@@ -20,7 +20,7 @@
   text-rendering: optimizeLegibility;
 }
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 320px; background: var(--page-bg); }
+body { margin: 0; min-width: 0; background: var(--page-bg); }
 h1, h2, h3, p { margin-top: 0; }
 h1 { font-size: clamp(1.8rem, 3.5vw, 2.65rem); line-height: 1.15; letter-spacing: -0.035em; margin-bottom: 0.7rem; }
 h2 { font-size: 1.3rem; letter-spacing: -0.02em; margin-bottom: 1rem; }
@@ -115,10 +115,11 @@ tr[role="button"]:hover, tr.is-selected { background: #edf3ff; }
 .alert-center { margin-top: 2rem; padding: 1.5rem; border: 1px solid var(--border); border-radius: 1rem; background: white; }
 #alert-center-title { scroll-margin-top: 1.5rem; }
 .alert-center .section-header { margin-bottom: 1.25rem; }
-.alert-controls { display: flex; align-items: center; gap: 0.65rem; }
+.alert-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.65rem; }
 .alert-controls label { font-size: 0.88rem; color: var(--text-muted); font-weight: 600; }
 select, input { border: 1px solid var(--border-strong); border-radius: 0.6rem; padding: 0.65rem 0.8rem; color: var(--text); background: white; }
 .alert-controls select { min-width: 9rem; }
+#alert-system { max-width: min(16rem, 100%); }
 .row-actions { display: flex; align-items: center; gap: 0.5rem; }
 .cell-detail { display: block; margin-top: 0.3rem; color: var(--text-muted); font-size: 0.88rem; line-height: 1.45; }
 .permission-note { padding: 0.8rem 1rem; border-left: 3px solid #7d9bcf; background: #eef3fb; color: #425776; font-size: 0.92rem; }
@@ -136,38 +137,78 @@ select, input { border: 1px solid var(--border-strong); border-radius: 0.6rem; p
 .login-card form { display: grid; gap: 0.65rem; }
 .login-card label { margin-top: 0.3rem; font-size: 0.92rem; font-weight: 650; }
 .login-card button { margin-top: 0.65rem; }
+.metric-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.metric-kpis .overview-card p { font-size: 1.5rem; }
+.overview-alerts { border-top-color: #7c3aed; background: #faf7ff; }
+.overview-cpu { border-top-color: #c2410c; background: #fff8f3; }
+.overview-memory { border-top-color: #0891b2; background: #f0fbff; }
+.overview-response { border-top-color: #a21caf; background: #fdf5ff; }
+.summary-note { margin-bottom: 1rem; }
+.threshold-panel { margin-bottom: 1.5rem; }
+.threshold-panel .section-copy { margin-bottom: 0.8rem; }
+.system-form { margin: 1rem 0; padding: 1rem; background: var(--surface-strong); border: 1px solid var(--border); border-radius: 0.75rem; }
+.system-form fieldset { border: 0; padding: 0; margin: 1rem 0 0; min-width: 0; }
+.system-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; margin-bottom: 1rem; }
+.system-form label { display: grid; gap: 0.4rem; font-size: 0.9rem; }
+.system-form input, .system-form textarea { width: 100%; min-width: 0; }
+.system-description { grid-column: 1 / -1; }
+textarea { font: inherit; border: 1px solid var(--border-strong); border-radius: 0.6rem; padding: 0.65rem 0.8rem; resize: vertical; }
+textarea:focus-visible { outline: 3px solid #7a9dea; outline-offset: 3px; }
+.systems-panel td { white-space: nowrap; }
+.dashboard-main-grid { grid-template-columns: minmax(0, 1fr); align-items: start; }
+.health-chart { display: grid; grid-template-columns: minmax(210px, 0.7fr) minmax(0, 2fr); align-items: center; gap: 1.5rem; }
+.health-chart .health-chart-body { max-width: none; gap: 2rem; justify-content: center; }
+.health-chart .health-chart-body svg { width: 180px; }
+.health-chart .chart-legend { display: grid; flex: 0 1 300px; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem 1.5rem; }
+.health-chart .chart-legend li { display: flex; gap: 0.4rem; font-size: 0.86rem; padding: 0.35rem 0; }
+.health-chart .chart-legend strong { margin-left: auto; font-size: 1rem; }
+.systems-panel table { table-layout: fixed; min-width: 1150px; }
+.systems-panel th { font-size: 0.72rem; letter-spacing: 0.02em; white-space: normal; }
+.systems-panel th:nth-child(1) { width: 140px; }
+.systems-panel th:nth-child(2) { width: 80px; }
+.systems-panel th:nth-child(3) { width: 180px; }
+.systems-panel th:nth-child(4) { width: 115px; }
+.systems-panel th:nth-child(5) { width: 75px; }
+.systems-panel th:nth-child(6) { width: 85px; }
+.systems-panel th:nth-child(7) { width: 120px; }
+.systems-panel th:nth-child(8) { width: 110px; }
+.systems-panel th:nth-child(9) { width: 160px; }
+.systems-panel th:nth-child(10) { width: 85px; }
+.systems-panel td:first-child, .systems-panel td:nth-child(3), .systems-panel td:nth-child(9) { white-space: normal; overflow-wrap: anywhere; }
 @media (max-width: 1050px) {
   .dashboard-main-grid { grid-template-columns: 1fr; }
-  .health-chart-body { max-width: 460px; }
+  .health-chart .chart-legend { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .section-header { flex-direction: column; }
 }
 @media (max-width: 720px) {
   .app-shell { width: calc(100% - 2rem); }
   .app-header, .dashboard-header { align-items: flex-start; flex-direction: column; }
-  .account-menu { justify-content: space-between; width: 100%; }
-  .account-copy { justify-items: start; }
+  .account-menu { justify-content: space-between; width: 100%; flex-wrap: wrap; }
+  .account-copy { justify-items: start; min-width: 0; overflow-wrap: anywhere; }
   .overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
   .metric-chart-grid { grid-template-columns: 1fr; }
+  .system-form-grid { grid-template-columns: 1fr; }
   .health-details, .detail-grid { grid-template-columns: 1fr; }
   .alert-controls { flex-wrap: wrap; }
   .alert-center { padding: 1rem; }
   .chart-card, .systems-panel { padding: 1rem; }
+  .health-chart { grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
+  .health-chart .health-chart-body { flex-direction: column; gap: 0.75rem; }
+  .health-chart .chart-legend { flex: none; width: 100%; max-width: 300px; gap: 0.35rem 1.25rem; }
+  .health-chart .chart-legend li { font-size: 0.82rem; }
+  .health-chart .health-chart-body svg { width: 160px; }
 }
 @media (prefers-reduced-motion: reduce) { button { transition: none; } }
 
-.form-panel { padding: 1.5rem; background: var(--panel-bg, #fff); border: 1px solid var(--border, #dce2eb); border-radius: 16px; margin: 1rem 0; }
+.form-panel { padding: 1.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: 1rem; margin: 1rem 0; }
 .editor-form { display: grid; gap: 1rem; max-width: 600px; }
 .editor-form label { display: grid; gap: 0.4rem; font-weight: 600; }
-.editor-form input, .editor-form textarea { width: 100%; min-width: 0; box-sizing: border-box; padding: 0.75rem; border: 1px solid #a8b4c5; border-radius: 8px; font: inherit; background: #fff; color: #172337; }
-.editor-form textarea { min-height: 90px; resize: vertical; }
+.editor-form input, .editor-form textarea { width: 100%; min-width: 0; padding: 0.75rem; border: 1px solid var(--border-strong); border-radius: 0.5rem; font: inherit; background: white; color: var(--text); }
 .verification-panel { display: grid; gap: 1rem; margin-top: 1.5rem; }
 .profile-panel { max-width: 780px; }
 .profile-panel dd { margin: 0.4rem 0 1rem; overflow-wrap: anywhere; }
-.kpi-grid { margin-top: 1rem; grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.kpi-grid .overview-card p { font-size: 1.4rem; }
 .history-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 1rem; margin: 1rem 0; }
-.history-controls label { display: grid; gap: 0.4rem; }
-.history-controls input { max-width: 100%; padding: 0.5rem; font: inherit; }
-.threshold-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
-@media (max-width: 720px) { .kpi-grid, .threshold-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .primary-nav { flex-wrap: wrap; } .form-panel { padding: 1rem; } }
-@media (max-width: 400px) { .kpi-grid, .threshold-grid { grid-template-columns: 1fr; } .history-controls label { width: 100%; } }
+.history-controls label { display: grid; gap: 0.4rem; min-width: 0; }
+.history-controls input { max-width: 100%; min-width: 0; padding: 0.5rem; font: inherit; }
+@media (max-width: 720px) { .form-panel { padding: 1rem; } }
+@media (max-width: 400px) { .history-controls label { width: 100%; } }

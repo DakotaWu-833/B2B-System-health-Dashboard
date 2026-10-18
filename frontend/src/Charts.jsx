@@ -12,8 +12,10 @@ export function HealthDistribution({ summary }) {
   let offset = 0;
   return (
     <section className="chart-card health-chart" aria-label="System health distribution">
-      <p className="section-kicker">Status breakdown</p>
-      <h3>System health distribution</h3>
+      <div className="health-chart-heading">
+        <p className="section-kicker">Status breakdown</p>
+        <h3>System health distribution</h3>
+      </div>
       {total === 0 ? <p className="empty-state">No system data to chart yet.</p> : (
         <div className="health-chart-body">
           <svg viewBox="0 0 160 160" role="img" aria-label={`${total} systems by health status`}>

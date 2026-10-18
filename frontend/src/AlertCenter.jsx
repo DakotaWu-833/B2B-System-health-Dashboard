@@ -24,8 +24,10 @@ function emptyPage() {
   };
 }
 
-function AlertCenter({ currentUser, onSessionExpired, onChanged }) {
+function AlertCenter({ currentUser, onSessionExpired, onAlertsChanged, systems = [], refreshVersion = 0,
+  onLoadMoreSystems, hasMoreSystems = false, systemsLoading = false, systemsError = "" }) {
   const [statusFilter, setStatusFilter] = useState("ACTIVE");
+  const [systemFilter, setSystemFilter] = useState("");
   const [alertPage, setAlertPage] = useState(emptyPage);
   const [isLoading, setIsLoading] = useState(true);
   const [actionAlertId, setActionAlertId] = useState(null);
@@ -52,6 +54,7 @@ function AlertCenter({ currentUser, onSessionExpired, onChanged }) {
         while (isCurrent()) {
           const query = new URLSearchParams({ page: String(pageToLoad), size: String(PAGE_SIZE) });
           if (statusFilter !== "ALL") query.set("status", statusFilter);
+          if (systemFilter) query.set("systemId", systemFilter);
           const response = await apiFetch(`/api/alerts?${query}`, { signal: controller.signal });
           if (!isCurrent()) return;
           if (response.status === 401) {
@@ -82,7 +85,7 @@ function AlertCenter({ currentUser, onSessionExpired, onChanged }) {
         }
       }
     },
-    [onSessionExpired, statusFilter]
+    [onSessionExpired, statusFilter, systemFilter]
   );
 
   useEffect(() => {
@@ -92,7 +95,7 @@ function AlertCenter({ currentUser, onSessionExpired, onChanged }) {
       latestRequest.current += 1;
       requestController.current?.abort();
     };
-  }, [loadAlerts]);
+  }, [loadAlerts, refreshVersion]);
 
   async function updateAlert(alert, action) {
     if (updateInProgress.current) return;
@@ -140,7 +143,7 @@ function AlertCenter({ currentUser, onSessionExpired, onChanged }) {
         } successfully.`
       );
       await loadAlerts(alertPage.page);
-      await onChanged?.();
+      await onAlertsChanged?.();
     } catch (requestError) {
       console.error(`Failed to ${action} alert:`, requestError);
       setError(requestError.message || `Unable to ${action} alert.`);
@@ -162,6 +165,16 @@ function AlertCenter({ currentUser, onSessionExpired, onChanged }) {
         </div>
 
         <div className="alert-controls">
+          <label htmlFor="alert-system">System</label>
+          <select id="alert-system" value={systemFilter} disabled={actionAlertId !== null}
+            onChange={(event) => setSystemFilter(event.target.value)}>
+            <option value="">All systems</option>
+            {systems.map((system) => <option key={system.id} value={system.id}>{system.name}</option>)}
+          </select>
+          {hasMoreSystems && <button type="button" className="button-secondary button-small"
+            disabled={systemsLoading || actionAlertId !== null} onClick={onLoadMoreSystems}>
+            {systemsLoading ? "Loading systems…" : "Load more filter systems"}
+          </button>}
           <label htmlFor="alert-status">Status</label>
           <select
             id="alert-status"
@@ -192,6 +205,7 @@ function AlertCenter({ currentUser, onSessionExpired, onChanged }) {
           resolve alerts.
         </p>
       )}
+      {systemsError && <p className="error-message" role="alert">{systemsError}</p>}
 
       {feedback && (
         <p className="success-message" role="status" aria-live="polite">

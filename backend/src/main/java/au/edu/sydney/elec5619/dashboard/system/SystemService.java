@@ -1,6 +1,5 @@
 package au.edu.sydney.elec5619.dashboard.system;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,9 +9,9 @@ import java.util.stream.Collectors;
 import org.springframework.data.domain.Sort;
 
 import au.edu.sydney.elec5619.dashboard.metric.Metric;
+import au.edu.sydney.elec5619.dashboard.metric.MetricFreshnessPolicy;
 import au.edu.sydney.elec5619.dashboard.metric.MetricReadingResponse;
 import au.edu.sydney.elec5619.dashboard.metric.MetricRepository;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,17 +22,17 @@ public class SystemService {
     private final MonitoredSystemRepository monitoredSystemRepository;
     private final MetricRepository metricRepository;
     private final HealthThresholdProperties thresholds;
-    private final Duration staleAfter;
+    private final MetricFreshnessPolicy freshnessPolicy;
 
     public SystemService(
             MonitoredSystemRepository monitoredSystemRepository,
             MetricRepository metricRepository,
             HealthThresholdProperties thresholds,
-            @Value("${app.metrics.stale-after:PT5M}") Duration staleAfter) {
+            MetricFreshnessPolicy freshnessPolicy) {
         this.monitoredSystemRepository = monitoredSystemRepository;
         this.metricRepository = metricRepository;
         this.thresholds = thresholds;
-        this.staleAfter = staleAfter;
+        this.freshnessPolicy = freshnessPolicy;
     }
 
     @Transactional(readOnly = true)
@@ -44,11 +43,12 @@ public class SystemService {
         }
         Map<Long, Metric> latest = metricRepository.findLatestForAllSystems().stream()
                 .collect(Collectors.toMap(m -> m.getMonitoredSystem().getId(), Function.identity()));
-        Instant staleBefore = Instant.now().minus(staleAfter);
+        Instant evaluatedAt = Instant.now();
         return systems.stream()
                 .map(system -> {
                     Metric metric = latest.get(system.getId());
-                    return SystemListItemResponse.from(system, metric, dataStatus(metric, staleBefore));
+                    return SystemListItemResponse.from(
+                            system, metric, freshnessPolicy.dataStatus(metric, evaluatedAt));
                 })
                 .toList();
     }
@@ -61,7 +61,7 @@ public class SystemService {
                 .findFirstByMonitoredSystemIdOrderByRecordedAtDescIdDesc(systemId)
                 .orElse(null);
 
-        MetricDataStatus dataStatus = dataStatus(latestMetric);
+        MetricDataStatus dataStatus = freshnessPolicy.dataStatus(latestMetric, Instant.now());
         return new SystemDetailResponse(
                 system.getId(),
                 system.getName(),
@@ -106,7 +106,8 @@ public class SystemService {
         saveSystem(system);
         Metric latestMetric = metricRepository
                 .findFirstByMonitoredSystemIdOrderByRecordedAtDescIdDesc(systemId).orElse(null);
-        return SystemListItemResponse.from(system, latestMetric, dataStatus(latestMetric));
+        return SystemListItemResponse.from(
+                system, latestMetric, freshnessPolicy.dataStatus(latestMetric, Instant.now()));
     }
 
     private MonitoredSystem saveSystem(MonitoredSystem system) {
@@ -129,19 +130,6 @@ public class SystemService {
             return null;
         }
         return description.trim();
-    }
-
-    private MetricDataStatus dataStatus(Metric metric) {
-        return dataStatus(metric, Instant.now().minus(staleAfter));
-    }
-
-    private MetricDataStatus dataStatus(Metric metric, Instant staleBefore) {
-        if (metric == null) {
-            return MetricDataStatus.NO_DATA;
-        }
-        return metric.getRecordedAt().isBefore(staleBefore)
-                ? MetricDataStatus.STALE
-                : MetricDataStatus.FRESH;
     }
 
     private List<String> statusReasons(Metric metric, MetricDataStatus dataStatus) {

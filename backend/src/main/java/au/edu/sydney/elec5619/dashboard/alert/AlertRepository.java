@@ -15,6 +15,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface AlertRepository extends JpaRepository<Alert, Long> {
 
+    long countByStatus(AlertStatus status);
+
     List<Alert> findAllByOrderByCreatedTimeDesc();
 
     List<Alert> findByStatusOrderByCreatedTimeDesc(AlertStatus status);

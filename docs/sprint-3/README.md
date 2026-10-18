@@ -1,8 +1,10 @@
 # Sprint 3 integration
 
-The active team integration branch is **develop-3**; **main** is the stable delivery branch. Current local implementation starts from `82c6aa5b51e0d115d19d5e0b70e9f69f9825591b`. The repair delivery branch is the user's **database** branch. Acceptance was performed before delivery and is bound to the source manifest; delivery does not merge into develop-3 or main, and no reviewed PR is claimed.
+The active team integration branch is **develop-3**; **main** is the stable delivery branch. The 19 October follow-up to [PR #19](https://github.sydney.edu.au/2026S2-Object-Oriented-App-Frameworks/ELEC5619-Lab02-Group-02/pull/19) integrates `develop-3` at `73331e3`, including merged PR #18, into the existing **database** delivery branch. Updating this branch does not merge PR #19 or release to main. Current results and the earlier source-manifest evidence are recorded separately.
 
-- [Current acceptance evidence](verification.md)
+- [Current integration verification](pr19-follow-up-verification.md)
+- [Sprint 3 team retrospective](retrospective.md) and [standalone PDF](retrospective.pdf)
+- [Historical 18 October acceptance evidence](verification.md)
 - [Local Docker setup, migrations and recovery](local-verification.md)
 - [Demonstration sequence](demo-script.md)
 - [API contract](../api/api-contract.md)
@@ -14,4 +16,4 @@ The active team integration branch is **develop-3**; **main** is the stable deli
 
 The user's assignment screenshot identifies Zeheng Li's tasks as **ELG2-46** (Dashboard KPIs), **ELG2-47** (multi-role accounts/database compatibility), and **ELG2-51** (email/verification persistence). Related integration tasks are ELG2-43/44/45 (system UI, thresholds and latest readings), ELG2-48/49 (profile API/UI), ELG2-50 (permissions), ELG2-52 (verification workflow), and ELG2-53 (final evidence). Earlier API notes use **ELG2-25 → ELG2-44** and **ELG2-26 → ELG2-46** for the same threshold/KPI capabilities.
 
-System-management backend was already present in develop-3. Charts, presentation styles and Alert Centre request handling reuse the team's remote `feature/ELG2-27-frontend-dashboard` implementation at `8e00ef7`, with integration changes for current APIs. This document records integration and verification; it does not reassign team authorship or claim that Jira issues/PRs were updated. Historical Sprint 1/2 evidence and dated handoff results remain historical.
+System-management backend was already present in develop-3. The earlier database integration reused the team's frontend at `8e00ef7`. The 19 October follow-up now preserves the merged PR #18 implementation (`355f8bf`) while adding PR #19's pagination and profile capabilities. This document records integration and verification; it does not reassign team authorship or claim Jira completion. Historical Sprint 1/2 evidence and dated handoff results remain historical.

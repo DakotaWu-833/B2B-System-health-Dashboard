@@ -1,5 +1,7 @@
 # Sprint 3 修复与验收记录
 
+> 历史记录：以下结果对应 2026-10-18 的原始源码清单。PR #18 合入后的 2026-10-19 整合、修复和重新验证见 [PR #19 follow-up verification](pr19-follow-up-verification.md)。下方旧测试数量、Docker/浏览器证据不能直接作为更新后版本的通过记录。
+
 验证日期：2026-10-18，Australia/Sydney。当前团队分支 `develop-3`，基线提交 `82c6aa5b51e0d115d19d5e0b70e9f69f9825591b`。本次修复的交付分支为用户的 `database`；下述验收发生于提交推送之前，版本用 [源码 SHA-256 清单](evidence/source-manifest.sha256) 绑定。已修复事项按用户要求从根目录问题清单删除。
 
 ## 当前结论

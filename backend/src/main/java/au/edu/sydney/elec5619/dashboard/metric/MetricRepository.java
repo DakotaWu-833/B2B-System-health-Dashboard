@@ -17,6 +17,8 @@ public interface MetricRepository extends JpaRepository<Metric, Long> {
             """)
     List<Metric> findLatestForAllSystems();
 
+    Optional<Metric> findFirstByMonitoredSystemIdOrderByRecordedAtDescIdDesc(Long systemId);
+
     List<Metric> findTop100ByMonitoredSystemIdOrderByRecordedAtDesc(Long systemId);
 
     Optional<Metric> findFirstByMonitoredSystemIdOrderByRecordedAtDesc(Long systemId);

@@ -1,6 +1,8 @@
 package au.edu.sydney.elec5619.dashboard.dashboard;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -16,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -38,7 +41,7 @@ class DashboardFreshnessIntegrationTests {
     private MetricRepository metricRepository;
 
     @Test
-    void dashboardAndDetailsHonorTheSameOverriddenFreshnessWindow() throws Exception {
+    void dashboardListDetailsAndUpdatesHonorTheSameOverriddenFreshnessWindow() throws Exception {
         Instant now = Instant.now();
         MonitoredSystem stale = monitoredSystemRepository.saveAndFlush(new MonitoredSystem(
                 "Stale", "SERVICE", "stale.example", HealthStatus.HEALTHY, null));
@@ -57,11 +60,28 @@ class DashboardFreshnessIntegrationTests {
                 .andExpect(jsonPath("$.data.averageMemoryUsage").value(30.0))
                 .andExpect(jsonPath("$.data.averageResponseTime").value(100.0));
 
+        mockMvc.perform(get("/api/systems"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].id").value(stale.getId()))
+                .andExpect(jsonPath("$.data[0].metricDataStatus").value("STALE"))
+                .andExpect(jsonPath("$.data[1].id").value(fresh.getId()))
+                .andExpect(jsonPath("$.data[1].metricDataStatus").value("FRESH"));
+
         mockMvc.perform(get("/api/systems/{id}", stale.getId()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.metricDataStatus").value("STALE"));
+                .andExpect(jsonPath("$.data.metricDataStatus").value("STALE"))
+                .andExpect(jsonPath("$.data.evaluatedThresholds.cpuWarning").value(75.0));
         mockMvc.perform(get("/api/systems/{id}", fresh.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.metricDataStatus").value("FRESH"));
+
+        mockMvc.perform(put("/api/systems/{id}", stale.getId()).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Stale updated","type":"SERVICE","host":"stale.example"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.name").value("Stale updated"))
+                .andExpect(jsonPath("$.data.metricDataStatus").value("STALE"));
     }
 }

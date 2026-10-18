@@ -34,6 +34,74 @@ class DashboardAndSystemQueryIntegrationTests {
     @Autowired
     private MetricRepository metricRepository;
 
+    @Autowired
+    private jakarta.persistence.EntityManager entityManager;
+
+    @Autowired
+    private SystemService systemService;
+
+    @Test
+    void listIncludesLatestReadingAndExplicitMissingData() throws Exception {
+        MonitoredSystem first = createSystem("Fresh", HealthStatus.WARNING);
+        MonitoredSystem second = createSystem("Stale", HealthStatus.HEALTHY);
+        createSystem("Empty", HealthStatus.HEALTHY);
+        Instant now = Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS);
+        createMetric(first, "99", "88", 900L, false, now.minusSeconds(60));
+        Metric latest = createMetric(first, "25", "35", 150L, true, now);
+        createMetric(first, "90", "95", 900L, false, now.minusSeconds(120));
+        createMetric(second, "10", "20", 100L, false, now.minusSeconds(600));
+        mockMvc.perform(get("/api/systems"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].latestMetric.metricId").value(latest.getId()))
+                .andExpect(jsonPath("$.data[0].latestMetric.cpuUsage").value(25))
+                .andExpect(jsonPath("$.data[0].latestMetric.memoryUsage").value(35))
+                .andExpect(jsonPath("$.data[0].latestMetric.responseTime").value(150))
+                .andExpect(jsonPath("$.data[0].latestMetric.availability").value(true))
+                .andExpect(jsonPath("$.data[0].lastUpdated").value(now.toString()))
+                .andExpect(jsonPath("$.data[0].metricDataStatus").value("FRESH"))
+                .andExpect(jsonPath("$.data[0].status").value("WARNING"))
+                .andExpect(jsonPath("$.data[1].metricDataStatus").value("STALE"))
+                .andExpect(jsonPath("$.data[2].latestMetric").doesNotExist())
+                .andExpect(jsonPath("$.data[2].lastUpdated").doesNotExist())
+                .andExpect(jsonPath("$.data[2].metricDataStatus").value("NO_DATA"));
+    }
+
+    @Test
+    void equalTimestampsUseHigherMetricIdInListAndDetails() throws Exception {
+        MonitoredSystem system = createSystem("Tied", HealthStatus.HEALTHY);
+        Instant now = Instant.now();
+        createMetric(system, "10", "20", 100L, true, now);
+        Metric latest = createMetric(system, "30", "40", 200L, false, now);
+        mockMvc.perform(get("/api/systems"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1))
+                .andExpect(jsonPath("$.data[0].latestMetric.metricId").value(latest.getId()));
+        mockMvc.perform(get("/api/systems/{id}", system.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.latestMetric.metricId").value(latest.getId()));
+    }
+
+    @Test
+    void listUsesTwoQueriesRegardlessOfSystemCount() {
+        for (int i = 0; i < 12; i++) {
+            MonitoredSystem system = createSystem("System " + i, HealthStatus.HEALTHY);
+            createMetric(system, "10", "20", 100L, true, Instant.now());
+        }
+        entityManager.flush();
+        entityManager.clear();
+        org.hibernate.stat.Statistics statistics = entityManager.getEntityManagerFactory()
+                .unwrap(org.hibernate.SessionFactory.class).getStatistics();
+        boolean enabled = statistics.isStatisticsEnabled();
+        statistics.setStatisticsEnabled(true);
+        statistics.clear();
+        try {
+            org.assertj.core.api.Assertions.assertThat(systemService.getSystems()).hasSize(12);
+            org.assertj.core.api.Assertions.assertThat(statistics.getPrepareStatementCount()).isEqualTo(2);
+        } finally {
+            statistics.setStatisticsEnabled(enabled);
+        }
+    }
+
     @Test
     void returnsZeroDashboardSummaryWhenDatabaseIsEmpty() throws Exception {
         mockMvc.perform(get("/api/dashboard/summary"))
@@ -88,6 +156,24 @@ class DashboardAndSystemQueryIntegrationTests {
                 .andExpect(jsonPath("$.data.metricDataStatus").value("NO_DATA"))
                 .andExpect(jsonPath("$.data.statusReasons[0]")
                         .value("No metric data is available"));
+    }
+
+    @Test
+    @WithMockUser(username = "management-query-test-user", roles = "MANAGEMENT")
+    void returnsDefaultEvaluatedThresholdsForSystemDetails() throws Exception {
+        MonitoredSystem system = createSystem("Threshold API", HealthStatus.HEALTHY);
+
+        mockMvc.perform(get("/api/systems/{id}", system.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.evaluatedThresholds.cpuWarning").value(75.0))
+                .andExpect(jsonPath("$.data.evaluatedThresholds.cpuCritical").value(90.0))
+                .andExpect(jsonPath("$.data.evaluatedThresholds.memoryWarning").value(75.0))
+                .andExpect(jsonPath("$.data.evaluatedThresholds.memoryCritical").value(90.0))
+                .andExpect(jsonPath("$.data.evaluatedThresholds.responseTimeWarning").value(500))
+                .andExpect(jsonPath("$.data.evaluatedThresholds.responseTimeCritical").value(1000))
+                .andExpect(jsonPath("$.data.metricDataStatus").value("NO_DATA"))
+                .andExpect(jsonPath("$.data.statusReasons.length()").value(1))
+                .andExpect(jsonPath("$.data.statusReasons[0]").value("No metric data is available"));
     }
 
     @Test

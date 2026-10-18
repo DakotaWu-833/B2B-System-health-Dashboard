@@ -1,6 +1,7 @@
 package au.edu.sydney.elec5619.dashboard.dashboard;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 
 public record DashboardSummaryResponse(
         long total,
@@ -11,5 +12,6 @@ public record DashboardSummaryResponse(
         long activeAlertCount,
         BigDecimal averageCpuUsage,
         BigDecimal averageMemoryUsage,
-        BigDecimal averageResponseTime) {
+        BigDecimal averageResponseTime,
+        Instant evaluatedAt) {
 }

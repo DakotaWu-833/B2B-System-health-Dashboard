@@ -13,5 +13,6 @@ public record SystemDetailResponse(
         String description,
         MetricReadingResponse latestMetric,
         MetricDataStatus metricDataStatus,
-        List<String> statusReasons) {
+        List<String> statusReasons,
+        HealthThresholdProperties evaluatedThresholds) {
 }

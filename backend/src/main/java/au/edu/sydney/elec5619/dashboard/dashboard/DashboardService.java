@@ -53,7 +53,8 @@ public class DashboardService {
                 alertRepository.countByStatus(AlertStatus.ACTIVE),
                 average(eligibleMetrics, Metric::getCpuUsage),
                 average(eligibleMetrics, Metric::getMemoryUsage),
-                average(eligibleMetrics, metric -> BigDecimal.valueOf(metric.getResponseTime())));
+                average(eligibleMetrics, metric -> BigDecimal.valueOf(metric.getResponseTime())),
+                evaluatedAt);
     }
 
     private BigDecimal average(List<Metric> metrics, Function<Metric, BigDecimal> value) {

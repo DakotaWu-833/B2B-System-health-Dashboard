@@ -11,6 +11,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.math.BigDecimal;
 import java.time.Instant;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import au.edu.sydney.elec5619.dashboard.alert.Alert;
 import au.edu.sydney.elec5619.dashboard.alert.AlertRepository;
 import au.edu.sydney.elec5619.dashboard.alert.AlertSeverity;
@@ -55,6 +57,37 @@ class DashboardSummaryIntegrationTests {
 
     @Autowired
     private EntityManager entityManager;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Test
+    void emptySummaryIncludesCurrentEvaluationTime() throws Exception {
+        Instant beforeRequest = Instant.now();
+        String response = noAverages(summary()).andReturn().getResponse().getContentAsString();
+        Instant afterRequest = Instant.now();
+        Instant evaluatedAt = Instant.parse(objectMapper.readTree(response)
+                .path("data").path("evaluatedAt").asText());
+
+        assertThat(evaluatedAt).isBetween(beforeRequest, afterRequest);
+    }
+
+    @Test
+    void summaryEvaluationTimeIsIndependentOfMeasurementTime() throws Exception {
+        Instant recordedAt = Instant.now().minusSeconds(60);
+        createMetric(createSystem("Measured", HealthStatus.HEALTHY),
+                "20.00", "30.00", 100L, true, recordedAt);
+
+        Instant beforeRequest = Instant.now();
+        String response = summary()
+                .andExpect(jsonPath("$.data.averageCpuUsage").value(20.0))
+                .andReturn().getResponse().getContentAsString();
+        Instant afterRequest = Instant.now();
+        Instant evaluatedAt = Instant.parse(objectMapper.readTree(response)
+                .path("data").path("evaluatedAt").asText());
+
+        assertThat(evaluatedAt).isBetween(beforeRequest, afterRequest).isAfter(recordedAt);
+    }
 
     @Test
     void emptyDatabaseReturnsZeroCountsAndExplicitlyNullAverages() throws Exception {
@@ -277,6 +310,7 @@ class DashboardSummaryIntegrationTests {
         return mockMvc.perform(get("/api/dashboard/summary"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.evaluatedAt").isNotEmpty())
                 .andExpect(jsonPath("$.message").value("Dashboard summary retrieved successfully"));
     }
 

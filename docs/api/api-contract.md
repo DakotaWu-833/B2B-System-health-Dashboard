@@ -232,7 +232,7 @@ defaults to five minutes (`PT5M`).
 ### Dashboard alert count and metric KPIs (ELG2-26)
 
 `GET /api/dashboard/summary` retains the five existing stored-system counts and
-adds four fields inside `data`:
+adds five fields inside `data`:
 
 | Field | Type / unit | Meaning |
 | --- | --- | --- |
@@ -240,6 +240,7 @@ adds four fields inside `data`:
 | `averageCpuUsage` | Number, percent (0-100), or null | Mean CPU usage of eligible latest readings |
 | `averageMemoryUsage` | Number, percent (0-100), or null | Mean memory usage of eligible latest readings |
 | `averageResponseTime` | Number, milliseconds, or null | Mean response time of eligible latest readings |
+| `evaluatedAt` | UTC ISO-8601 timestamp | Time this summary was evaluated, also used for all freshness decisions in this response |
 
 Example response:
 
@@ -255,7 +256,8 @@ Example response:
     "activeAlertCount": 2,
     "averageCpuUsage": 40.00,
     "averageMemoryUsage": 50.00,
-    "averageResponseTime": 200.00
+    "averageResponseTime": 200.00,
+    "evaluatedAt": "2026-10-18T09:30:00Z"
   },
   "message": "Dashboard summary retrieved successfully"
 }
@@ -283,6 +285,10 @@ Aggregation rules:
   page. `ACKNOWLEDGED` and `RESOLVED` are excluded. Alert age and metric freshness
   do not remove an alert from this count. Acknowledgement or resolution changes
   the count on the next summary request according to the stored alert status.
+- `evaluatedAt` is returned even when there are no eligible readings or systems.
+  It is the summary evaluation time, not a measurement timestamp or proof that a
+  system has fresh data. Display it as the summary update time; individual
+  measurement times remain available in `GET /api/systems` as `lastUpdated`.
 
 The latest readings are fetched in a single batch using
 `MetricRepository.findLatestForAllSystems()`, matching the system-management/list
@@ -290,3 +296,49 @@ workstream's query. Dashboard aggregation does not issue a query per system or
 load full metric history. Access remains authenticated for Operations and
 Management; anonymous requests return `401`. The frontend can consume the new
 fields without changing existing summary field names.
+
+# Sprint 3 system-management extension
+
+See [system management and permission contract](../sprint-3/system-management-api.md)
+for POST /api/systems, PUT /api/systems/{id}, enriched GET /api/systems data,
+validation and role requirements.
+
+### Evaluated health thresholds (ELG2-25)
+
+`GET /api/systems/{id}` also returns `data.evaluatedThresholds`. Existing response
+fields are unchanged. This object exposes the current runtime configuration used
+by both the health-status calculator and the detail API's `statusReasons`, including
+environment-variable or Spring property overrides. The values are not hard-coded
+response defaults or a historical snapshot of the configuration when a reading
+was submitted. Returning thresholds does not recalculate the stored system status.
+
+With the default configuration, the additional field is:
+
+```json
+{
+  "evaluatedThresholds": {
+    "cpuWarning": 75.0,
+    "cpuCritical": 90.0,
+    "memoryWarning": 75.0,
+    "memoryCritical": 90.0,
+    "responseTimeWarning": 500,
+    "responseTimeCritical": 1000
+  }
+}
+```
+
+| Fields | Unit | Comparison |
+| --- | --- | --- |
+| `cpuWarning`, `cpuCritical` | CPU usage percent (0-100) | Reading `>=` threshold |
+| `memoryWarning`, `memoryCritical` | Memory usage percent (0-100) | Reading `>=` threshold |
+| `responseTimeWarning`, `responseTimeCritical` | Milliseconds | Reading `>=` threshold |
+
+Critical takes precedence over Warning for each metric. Unavailable readings retain
+only the `System is unavailable` reason, even if stale or above thresholds.
+Threshold configuration remains visible for `FRESH`, `STALE`, `NO_DATA` and offline
+readings; its presence does not mean a measurement exists or is fresh. Missing
+readings still return `latestMetric: null` and only the no-data reason. Stale
+available readings retain their stale warning and any threshold reasons.
+
+Access remains authenticated for both Operations and Management users. Unknown
+system IDs retain the existing `404` response.

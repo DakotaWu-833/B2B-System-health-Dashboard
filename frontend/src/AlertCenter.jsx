@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "./api";
 
 const PAGE_SIZE = 5;
@@ -31,44 +31,53 @@ function AlertCenter({ currentUser, onSessionExpired }) {
   const [actionAlertId, setActionAlertId] = useState(null);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
+  const latestRequest = useRef(0);
+  const requestController = useRef(null);
+  const updateInProgress = useRef(false);
 
   const canManageAlerts = currentUser?.role === "OPERATIONS";
 
   const loadAlerts = useCallback(
-    async (requestedPage = 0, signal) => {
+    async (requestedPage = 0) => {
+      const requestId = ++latestRequest.current;
+      requestController.current?.abort();
+      const controller = new AbortController();
+      requestController.current = controller;
+      const isCurrent = () => requestId === latestRequest.current && !controller.signal.aborted;
       setIsLoading(true);
       setError("");
 
-      const query = new URLSearchParams({
-        page: String(requestedPage),
-        size: String(PAGE_SIZE),
-      });
-
-      if (statusFilter !== "ALL") {
-        query.set("status", statusFilter);
-      }
-
       try {
-        const response = await apiFetch(`/api/alerts?${query}`, { signal });
-
-        if (response.status === 401) {
-          onSessionExpired?.();
+        let pageToLoad = Math.max(0, requestedPage);
+        while (isCurrent()) {
+          const query = new URLSearchParams({ page: String(pageToLoad), size: String(PAGE_SIZE) });
+          if (statusFilter !== "ALL") query.set("status", statusFilter);
+          const response = await apiFetch(`/api/alerts?${query}`, { signal: controller.signal });
+          if (!isCurrent()) return;
+          if (response.status === 401) {
+            onSessionExpired?.();
+            return;
+          }
+          const result = await response.json();
+          if (!isCurrent()) return;
+          if (!response.ok || !result.success) {
+            throw new Error(result.message || "Failed to load alerts.");
+          }
+          const lastPage = Math.max(0, result.data.totalPages - 1);
+          if (pageToLoad > lastPage) {
+            pageToLoad = lastPage;
+            continue;
+          }
+          setAlertPage(result.data);
           return;
         }
-
-        const result = await response.json();
-        if (!response.ok || !result.success) {
-          throw new Error(result.message || "Failed to load alerts.");
-        }
-
-        setAlertPage(result.data);
       } catch (requestError) {
-        if (requestError.name !== "AbortError") {
+        if (isCurrent() && requestError.name !== "AbortError") {
           console.error("Failed to load alerts:", requestError);
           setError("Unable to load alerts. Please try again.");
         }
       } finally {
-        if (!signal?.aborted) {
+        if (isCurrent()) {
           setIsLoading(false);
         }
       }
@@ -77,13 +86,17 @@ function AlertCenter({ currentUser, onSessionExpired }) {
   );
 
   useEffect(() => {
-    const controller = new AbortController();
     setFeedback("");
-    loadAlerts(0, controller.signal);
-    return () => controller.abort();
+    loadAlerts(0);
+    return () => {
+      latestRequest.current += 1;
+      requestController.current?.abort();
+    };
   }, [loadAlerts]);
 
   async function updateAlert(alert, action) {
+    if (updateInProgress.current) return;
+    updateInProgress.current = true;
     setActionAlertId(alert.alertId);
     setError("");
     setFeedback("");
@@ -131,6 +144,7 @@ function AlertCenter({ currentUser, onSessionExpired }) {
       console.error(`Failed to ${action} alert:`, requestError);
       setError(requestError.message || `Unable to ${action} alert.`);
     } finally {
+      updateInProgress.current = false;
       setActionAlertId(null);
     }
   }
@@ -139,7 +153,6 @@ function AlertCenter({ currentUser, onSessionExpired }) {
     <section className="alert-center" aria-labelledby="alert-center-title">
       <div className="section-header">
         <div>
-          <p className="card-label">Sprint 2 feature</p>
           <h2 id="alert-center-title">Alert Centre</h2>
           <p className="section-copy">
             Review operational incidents and move them through a controlled
@@ -152,6 +165,7 @@ function AlertCenter({ currentUser, onSessionExpired }) {
           <select
             id="alert-status"
             value={statusFilter}
+            disabled={actionAlertId !== null}
             onChange={(event) => setStatusFilter(event.target.value)}
           >
             {STATUS_OPTIONS.map((status) => (
@@ -164,7 +178,7 @@ function AlertCenter({ currentUser, onSessionExpired }) {
             className="button-secondary"
             type="button"
             onClick={() => loadAlerts(alertPage.page)}
-            disabled={isLoading}
+            disabled={isLoading || actionAlertId !== null}
           >
             {isLoading ? "Refreshing…" : "Refresh alerts"}
           </button>
@@ -218,7 +232,7 @@ function AlertCenter({ currentUser, onSessionExpired }) {
               </thead>
               <tbody>
                 {alertPage.items.map((alert) => {
-                  const actionInProgress = actionAlertId === alert.alertId;
+                  const actionInProgress = actionAlertId !== null;
                   return (
                     <tr key={alert.alertId}>
                       <td>{alert.systemName}</td>

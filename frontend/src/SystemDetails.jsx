@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { apiFetch } from "./api";
+import { MetricTrend } from "./Charts";
 
 function SystemDetails({ system, onSessionExpired }) {
   const [details, setDetails] = useState(null);
@@ -111,28 +112,37 @@ function SystemDetails({ system, onSessionExpired }) {
       <h2>System Details</h2>
 
       <div className="system-details-card">
-        <h3>{details.name}</h3>
+        <div className="detail-card-header">
+          <div>
+            <p className="section-kicker">Selected system</p>
+            <h3>{details.name}</h3>
+          </div>
+          <span className={`system-status status-${details.status.toLowerCase()}`}>
+            {details.status}
+          </span>
+        </div>
 
-        <p>
-          <strong>Status:</strong> {details.status}
-        </p>
+        <div className="detail-grid">
+          <p>
+            <strong>Type</strong>
+            <span>{details.type}</span>
+          </p>
 
-        <p>
-          <strong>Type:</strong> {details.type}
-        </p>
+          <p>
+            <strong>Host</strong>
+            <span>{details.host}</span>
+          </p>
 
-        <p>
-          <strong>Host:</strong> {details.host}
-        </p>
+          <p>
+            <strong>Metric data</strong>
+            <span>{details.metricDataStatus}</span>
+          </p>
 
-        <p>
-          <strong>Description:</strong>{" "}
-          {details.description || "No description available."}
-        </p>
-
-        <p>
-          <strong>Metric Data Status:</strong> {details.metricDataStatus}
-        </p>
+          <p className="detail-description">
+            <strong>Description</strong>
+            <span>{details.description || "No description available."}</span>
+          </p>
+        </div>
       </div>
 
       <div className="status-reasons">
@@ -147,6 +157,15 @@ function SystemDetails({ system, onSessionExpired }) {
         ) : (
           <p>No threshold issue detected.</p>
         )}
+      </div>
+      <div className="metric-chart-grid">
+        <MetricTrend title="Resource usage" metrics={metrics} unit="%" maximum={100}
+          series={[
+            { key: "cpuUsage", label: "CPU", color: "#3866cd" },
+            { key: "memoryUsage", label: "Memory", color: "#138b82" },
+          ]} />
+        <MetricTrend title="Response time" metrics={metrics} unit="ms"
+          series={[{ key: "responseTime", label: "Response time", color: "#8756b7" }]} />
       </div>
       <h3>Recent Metrics</h3>
 

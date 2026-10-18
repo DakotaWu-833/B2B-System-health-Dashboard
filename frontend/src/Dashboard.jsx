@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import AlertCenter from "./AlertCenter";
+import { HealthDistribution } from "./Charts";
 import SystemDetails from "./SystemDetails";
 import { apiFetch } from "./api";
 
@@ -65,9 +66,15 @@ function Dashboard({ currentUser, onSessionExpired }) {
   }, [loadDashboard]);
 
   return (
-    <section className="dashboard">
+    <section className="dashboard" id="dashboard">
       <div className="dashboard-header">
-        <h1>System Health Dashboard</h1>
+        <div>
+          <p className="section-kicker">Live overview</p>
+          <h2>System Health Dashboard</h2>
+          <p className="section-description">
+            Current status across all monitored services and servers.
+          </p>
+        </div>
         <button type="button" onClick={loadDashboard} disabled={isLoading}>
           {isLoading ? "Refreshing dashboard…" : "Refresh dashboard"}
         </button>
@@ -85,76 +92,83 @@ function Dashboard({ currentUser, onSessionExpired }) {
             <h2>Overview</h2>
 
             <div className="overview-grid">
-              <div className="overview-card">
+              <div className="overview-card overview-total">
                 <h3>Total Systems</h3>
                 <p>{summary.total}</p>
               </div>
 
-              <div className="overview-card">
+              <div className="overview-card overview-healthy">
                 <h3>Healthy</h3>
                 <p>{summary.healthy}</p>
               </div>
 
-              <div className="overview-card">
+              <div className="overview-card overview-warning">
                 <h3>Warning</h3>
                 <p>{summary.warning}</p>
               </div>
 
-              <div className="overview-card">
+              <div className="overview-card overview-critical">
                 <h3>Critical</h3>
                 <p>{summary.critical}</p>
               </div>
 
-              <div className="overview-card">
+              <div className="overview-card overview-offline">
                 <h3>Offline</h3>
                 <p>{summary.offline}</p>
               </div>
             </div>
           </section>
 
-          <section>
-            <h2>Systems</h2>
-            {systems.length === 0 ? (
-              <p className="empty-state" role="status">
-                No monitored systems are available yet.
-              </p>
-            ) : (
-              <div className="table-wrapper">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Type</th>
-                      <th>Host</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {systems.map((system) => (
-                      <tr
-                        key={system.id}
-                        onClick={() => setSelectedSystem(system)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            setSelectedSystem(system);
-                          }
-                        }}
-                        tabIndex={0}
-                        role="button"
-                        style={{ cursor: "pointer" }}
-                      >
-                        <td>{system.name}</td>
-                        <td>{system.type}</td>
-                        <td>{system.host}</td>
-                        <td>{system.status}</td>
+          <div className="dashboard-main-grid">
+            <HealthDistribution summary={summary} />
+            <section className="systems-panel">
+              <h2>Systems</h2>
+              {systems.length === 0 ? (
+                <p className="empty-state" role="status">
+                  No monitored systems are available yet.
+                </p>
+              ) : (
+                <div className="table-wrapper">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Host</th>
+                        <th>Status</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
+                    </thead>
+                    <tbody>
+                      {systems.map((system) => (
+                        <tr
+                          key={system.id}
+                          className={selectedSystem?.id === system.id ? "is-selected" : ""}
+                          onClick={() => setSelectedSystem(system)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              setSelectedSystem(system);
+                            }
+                          }}
+                          tabIndex={0}
+                          role="button"
+                        >
+                          <td>{system.name}</td>
+                          <td>{system.type}</td>
+                          <td>{system.host}</td>
+                          <td>
+                            <span className={`system-status status-${system.status.toLowerCase()}`}>
+                              {system.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </div>
 
           <SystemDetails
             system={selectedSystem}

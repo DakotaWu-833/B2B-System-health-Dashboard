@@ -111,17 +111,31 @@ function App() {
 
   return (
     <main className="app-shell">
-      <div className="session-bar">
-        <p>
-          Signed in as <strong>{currentUser.username}</strong>
-          <span className="role-badge">{currentUser.role}</span>
-        </p>
-        <button type="button" onClick={handleLogout}>
-          Logout
-        </button>
-      </div>
+      <header className="app-header">
+        <div className="brand-lockup">
+          <span className="brand-mark" aria-hidden="true">SH</span>
+          <div>
+            <p className="brand-name">System Health</p>
+            <p className="brand-context">Operations dashboard</p>
+          </div>
+        </div>
+
+        <div className="account-menu">
+          <div className="account-copy">
+            <span>{currentUser.username}</span>
+            <small>{currentUser.role}</small>
+          </div>
+          <button className="button-secondary" type="button" onClick={handleLogout}>
+            Logout
+          </button>
+        </div>
+      </header>
+
+      <nav className="primary-nav" aria-label="Primary navigation">
+        <a href="#dashboard">Dashboard</a>
+        <a href="#alert-center-title">Alert Centre</a>
+      </nav>
       <section className="hero" aria-labelledby="page-title">
-        <p className="eyebrow">ELEC5619 · Sprint 2 demonstrator</p>
         <h1 id="page-title">B2B System Health Dashboard</h1>
         <p className="hero-copy">
           Monitor service health, inspect recent metrics and triage live alerts

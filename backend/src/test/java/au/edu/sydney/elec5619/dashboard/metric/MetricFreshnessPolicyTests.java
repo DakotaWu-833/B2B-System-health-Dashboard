@@ -44,6 +44,14 @@ class MetricFreshnessPolicyTests {
                 .isEqualTo(MetricDataStatus.FRESH);
     }
 
+    @Test
+    void rejectsZeroAndNegativeFreshnessWindows() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> new MetricFreshnessPolicy(Duration.ZERO))
+                .isInstanceOf(IllegalArgumentException.class);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> new MetricFreshnessPolicy(Duration.ofSeconds(-1)))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
     private Metric metricAt(Instant recordedAt) {
         MonitoredSystem system = new MonitoredSystem(
                 "Freshness API", "SERVICE", "freshness.example", HealthStatus.HEALTHY, null);

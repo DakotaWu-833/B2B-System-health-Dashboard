@@ -16,7 +16,9 @@ import jakarta.validation.constraints.Size;
 @Entity
 @Table(
         name = "users",
-        uniqueConstraints = @UniqueConstraint(name = "uk_users_username", columnNames = "username"))
+        uniqueConstraints = {
+            @UniqueConstraint(name = "uk_users_username", columnNames = "username"),
+            @UniqueConstraint(name = "uk_users_email", columnNames = "email")})
 public class User {
 
     @Id
@@ -38,6 +40,27 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private Role role;
+
+    @Column(length = 254)
+    private String email;
+
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified;
+
+    @Column(name = "email_verified_at")
+    private java.time.Instant emailVerifiedAt;
+
+    public String getEmail() { return email; }
+    public boolean isEmailVerified() { return emailVerified; }
+    public java.time.Instant getEmailVerifiedAt() { return emailVerifiedAt; }
+    public void changeEmail(String email) {
+        if (!java.util.Objects.equals(this.email, email)) {
+            this.email = email;
+            this.emailVerified = false;
+            this.emailVerifiedAt = null;
+        }
+    }
+    public void verifyEmail(java.time.Instant at) { this.emailVerified = true; this.emailVerifiedAt = at; }
 
     protected User() {
     }

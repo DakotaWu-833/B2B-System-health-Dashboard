@@ -5,6 +5,7 @@ import java.util.List;
 
 import au.edu.sydney.elec5619.dashboard.common.InvalidPageRequestException;
 import au.edu.sydney.elec5619.dashboard.common.PagedResponse;
+import au.edu.sydney.elec5619.dashboard.common.RetryingTransaction;
 import au.edu.sydney.elec5619.dashboard.metric.Metric;
 import au.edu.sydney.elec5619.dashboard.system.HealthThresholdProperties;
 import org.springframework.data.domain.Page;
@@ -23,12 +24,14 @@ public class AlertService {
 
     private final AlertRepository alertRepository;
     private final HealthThresholdProperties thresholds;
+    private final RetryingTransaction transaction;
 
     public AlertService(
             AlertRepository alertRepository,
-            HealthThresholdProperties thresholds) {
+            HealthThresholdProperties thresholds, RetryingTransaction transaction) {
         this.alertRepository = alertRepository;
         this.thresholds = thresholds;
+        this.transaction = transaction;
     }
 
     @Transactional
@@ -96,8 +99,11 @@ public class AlertService {
         return PagedResponse.from(alerts.map(AlertResponse::from));
     }
 
-    @Transactional
     public AlertResponse acknowledge(Long alertId) {
+        return transaction.execute(() -> acknowledgeInTransaction(alertId));
+    }
+
+    private AlertResponse acknowledgeInTransaction(Long alertId) {
         Alert alert = getAlert(alertId);
         if (alert.getStatus() != AlertStatus.ACTIVE) {
             throw new InvalidAlertStatusTransitionException(
@@ -109,8 +115,11 @@ public class AlertService {
         return AlertResponse.from(alert);
     }
 
-    @Transactional
     public AlertResponse resolve(Long alertId) {
+        return transaction.execute(() -> resolveInTransaction(alertId));
+    }
+
+    private AlertResponse resolveInTransaction(Long alertId) {
         Alert alert = getAlert(alertId);
         if (alert.getStatus() != AlertStatus.ACTIVE
                 && alert.getStatus() != AlertStatus.ACKNOWLEDGED) {

@@ -83,16 +83,12 @@ describe("Dashboard", () => {
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
       "/api/dashboard/summary",
-      {
-        credentials: "include",
-      }
+      expect.objectContaining({ credentials: "include" })
     );
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      "/api/systems",
-      {
-        credentials: "include",
-      }
+      "/api/systems/page?page=0&size=10",
+      expect.objectContaining({ credentials: "include" })
     );
   });
 

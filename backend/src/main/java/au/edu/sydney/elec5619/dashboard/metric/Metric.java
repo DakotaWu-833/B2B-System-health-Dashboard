@@ -15,11 +15,13 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 
 @Entity
+@org.hibernate.annotations.Check(constraints = "cpu_usage >= 0 AND cpu_usage <= 100 AND memory_usage >= 0 AND memory_usage <= 100 AND response_time >= 0")
 @Table(
         name = "metrics",
         indexes = @Index(
@@ -40,12 +42,14 @@ public class Metric {
     @NotNull
     @DecimalMin("0.0")
     @DecimalMax("100.0")
+    @Digits(integer = 3, fraction = 2)
     @Column(name = "cpu_usage", nullable = false, precision = 5, scale = 2)
     private BigDecimal cpuUsage;
 
     @NotNull
     @DecimalMin("0.0")
     @DecimalMax("100.0")
+    @Digits(integer = 3, fraction = 2)
     @Column(name = "memory_usage", nullable = false, precision = 5, scale = 2)
     private BigDecimal memoryUsage;
 

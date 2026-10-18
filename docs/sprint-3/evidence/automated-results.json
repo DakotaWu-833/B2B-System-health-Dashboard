@@ -1,0 +1,289 @@
+{
+  "unit": {
+    "tests": 158,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "suites": [
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.SystemHealthDashboardApplicationTests",
+        "tests": "2",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.01"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.alert.AlertIntegrationTests",
+        "tests": "7",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.114"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.auth.AuthFailureIntegrationTests",
+        "tests": "6",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.492"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.auth.AuthIntegrationTests",
+        "tests": "3",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.742"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.auth.DatabaseUserDetailsServiceTests",
+        "tests": "2",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.073"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.auth.DemoUserSeederTests",
+        "tests": "3",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.023"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.auth.MultiRoleDemoSeederTests",
+        "tests": "3",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.255"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.auth.PermissionMatrixIntegrationTests",
+        "tests": "19",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.092"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.auth.UserRepositoryTests",
+        "tests": "2",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.149"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.common.RetryingTransactionTests",
+        "tests": "2",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.347"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.dashboard.DashboardFreshnessIntegrationTests",
+        "tests": "1",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.221"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.dashboard.DashboardSummaryIntegrationTests",
+        "tests": "18",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.315"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.demo.DemoDataSeederIntegrationTests",
+        "tests": "2",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "2.351"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.metric.MetricFreshnessPolicyTests",
+        "tests": "4",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.002"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.metric.MetricRetentionIntegrationTests",
+        "tests": "3",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.305"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.metric.MetricSubmissionIntegrationTests",
+        "tests": "4",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.023"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.migration.SystemIdentityMigrationTests",
+        "tests": "1",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.022"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.persistence.PersistenceLayerTests",
+        "tests": "4",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.031"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.profile.ProfileIntegrationTests",
+        "tests": "15",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "1.507"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.profile.SmtpVerificationMailSenderTests",
+        "tests": "2",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.033"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.system.DashboardAndSystemQueryIntegrationTests",
+        "tests": "13",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.064"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.system.HealthStatusCalculatorTests",
+        "tests": "7",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.006"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.system.PagingAndHistoryIntegrationTests",
+        "tests": "5",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.246"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.system.SystemDuplicateRaceTests",
+        "tests": "2",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.103"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.system.SystemManagementIntegrationTests",
+        "tests": "18",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.063"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.system.SystemThresholdIntegrationTests",
+        "tests": "10",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.206"
+      }
+    ]
+  },
+  "integration": {
+    "tests": 18,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "suites": [
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.migration.DatabaseCapacityIT",
+        "tests": "3",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "17.692"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.migration.H2FlywayMigrationIT",
+        "tests": "1",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "0.397"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.migration.MySqlDatabaseApiIT",
+        "tests": "8",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "5.485"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.migration.MySqlFlywayMigrationIT",
+        "tests": "1",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "5.101"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.migration.MySqlPopulatedUpgradeIT",
+        "tests": "1",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "4.892"
+      },
+      {
+        "name": "au.edu.sydney.elec5619.dashboard.migration.MySqlProfileConcurrencyIT",
+        "tests": "4",
+        "failures": "0",
+        "errors": "0",
+        "skipped": "0",
+        "time": "9.132"
+      }
+    ]
+  },
+  "frontend": {
+    "tests": 57,
+    "files": 10,
+    "failures": 0,
+    "productionBuild": "passed"
+  },
+  "execution": {
+    "date": "2026-10-18",
+    "timezone": "Australia/Sydney",
+    "baseCommit": "82c6aa5b51e0d115d19d5e0b70e9f69f9825591b",
+    "remoteCI": "not run",
+    "dockerImageMySql": "mysql:8.4",
+    "observedMySqlVersion": "8.4.11",
+    "mailpitImage": "axllent/mailpit:v1.31.6"
+  }
+}

@@ -33,6 +33,15 @@ public class MetricController {
                 "Recent metrics retrieved successfully");
     }
 
+    @GetMapping("/history")
+    public ApiResponse<MetricHistoryResponse> history(@PathVariable Long systemId,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) java.time.Instant from,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) java.time.Instant to,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "20") int size,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String cursor) {
+        return ApiResponse.success(metricQueryService.history(systemId, from, to, size, cursor), "Metric history retrieved successfully");
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<MetricResponse> submitMetric(

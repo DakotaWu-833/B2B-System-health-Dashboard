@@ -1,6 +1,6 @@
 # System management API and authorization contract
 
-Local implementation baseline: supplied develop-2 ZIP (Sprint 2 Alert Centre included).
+Current baseline: develop-3 at `82c6aa5`. The earlier develop-2 ZIP and PR #16 results below are historical. Current integrated verification is indexed in [Sprint 3](README.md).
 
 ## Permission matrix
 
@@ -22,9 +22,7 @@ Missing/invalid CSRF on a mutation returns 403 before authorization; supply a va
 token when testing the distinction between 401 and role-based 403. The existing
 safe JSON message is `Access denied` for both CSRF and permission rejections.
 
-Management retains existing read access to details/history pending a different
-team-approved policy. Profile extension and email verification belong to other
-workstreams; their future endpoints require an explicit permission review.
+Management can read all monitoring data and update/verify its own profile. Both roles use `/api/profile`; no user ID is accepted. New paging/history routes retain read permissions. `/api/admin/**` requires Operations. Mutations require CSRF. See the [current API contract](../api/api-contract.md).
 
 ## Request body (POST and PUT)
 

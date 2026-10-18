@@ -43,7 +43,7 @@ All JSON APIs use the `/api` prefix and the common response envelope below.
 }
 ```
 
-CPU and memory usage must be between `0` and `100`, response time must be non-negative, and all four fields are required.
+CPU and memory usage must be between `0` and `100` with at most two fractional digits. Response time must be a non-negative JSON integer in milliseconds. All four fields are required.
 
 ### Success response
 
@@ -342,3 +342,55 @@ available readings retain their stale warning and any threshold reasons.
 
 Access remains authenticated for both Operations and Management users. Unknown
 system IDs retain the existing `404` response.
+
+## Sprint 3 integrated additions (develop-3)
+
+All responses retain `{success,data,message}`. Authentication uses the existing server session cookie; mutations additionally require the current `/api/auth/csrf` token. Never send a user ID or role when editing a profile.
+
+| Method | Path | Access | Result |
+| --- | --- | --- | --- |
+| POST | `/api/systems` | Operations + CSRF | 201 system; duplicate identity 409 |
+| PUT | `/api/systems/{id}` | Operations + CSRF | 200 system; missing 404; duplicate 409 |
+| GET | `/api/systems/page?page=0&size=10` | Both roles | 200 paged systems with latest readings |
+| GET | `/api/systems/{id}/metrics/history` | Both roles | 200 bounded time window and cursor |
+| GET | `/api/profile` | Both roles, own user | 200 profile from the database |
+| PUT | `/api/profile` | Both roles, own user + CSRF | 200 saved profile |
+| POST | `/api/profile/email-verification` | Both roles, own user + CSRF | 200 `{expiresAt,resendAt}` after SMTP accepts mail |
+| POST | `/api/profile/email-verification/confirm` | Both roles, own user + CSRF | 200 verified profile |
+| GET | `/api/admin/metrics-retention/preview` | Operations | 200 preview; no data changes |
+| POST | `/api/admin/metrics-retention/run` | Operations + CSRF | 200 one archive batch; 409 if disabled |
+
+### Numbers and freshness
+
+CPU/memory are required JSON numbers in `[0,100]` with **at most two fractional digits**, matching `DECIMAL(5,2)`. Excess precision is rejected with 400 before any write; it is not rounded into another health band. `responseTime` is a required non-negative JSON **integer in milliseconds**; fractional JSON values, including `-0.9`, are rejected with 400. `availability` is required and non-null. Illegal submissions leave metrics, calculated system status and alerts unchanged.
+
+`latestMetric` and `lastUpdated` are null for NO_DATA. `metricDataStatus` distinguishes NO_DATA, FRESH and STALE independently of health. Summary averages use fresh available readings; real zero is returned as 0, absent applicable readings as null. `activeAlertCount` counts ACTIVE, independently of freshness. `evaluatedAt` is the summary evaluation time. The configured freshness duration must be positive.
+
+### System pagination
+
+`/api/systems/page` returns `data: {items,page,size,totalElements,totalPages,first,last}`. Page is zero-based, bounded to `0..1000000`; size defaults to 20 and is `1..100`. Sorting is stable by ascending system ID. Latest metrics are retrieved in a batch scoped to the returned systems. The legacy `/api/systems` array remains for at most 500 systems; larger lists return 400 instructing the client to use `/page`. This prevents an unbounded legacy response.
+
+### Metric history
+
+`GET /api/systems/{id}/metrics/history?from=<ISO-Instant>&to=<ISO-Instant>&size=20&cursor=<opaque>` returns `{items,nextCursor,hasMore,from,to}`. Defaults: the last seven days, 20 records; maximum: 31 days per window, 100 per page. Invalid ranges, dates, cursors or sizes return 400; missing system returns 404. Order is `(recordedAt DESC, metricId DESC)`. Equal timestamps do not skip/duplicate records. The cursor preserves the original time window; reuse that returned cursor without changing the range. New readings after its upper bound appear after a fresh query. The old `/metrics` route remains a stable latest-100 array.
+
+Retention is opt-in. Archived readings leave these active-history endpoints; retained archive data is available to authorized database maintenance/export tooling, not a new public archive endpoint.
+
+### Current profile and email lifecycle
+
+Profile shape: `{id,username,role,email,emailVerified,emailVerifiedAt}`. Nullable email/date support existing users. No password/hash/verification code is returned. PUT accepts `{email:"owner@example.test"}`; spaces are trimmed and ASCII email is lowercased, with maximum length 254. Invalid/missing addresses return 400 and case-normalized duplicate addresses return 409. Names, roles and verification state cannot be changed through this endpoint. A changed email resets verification/date and invalidates the previous challenge. Saving the unchanged normalized email preserves verification.
+
+Sending requires a stored unverified address. Codes are random six-digit values stored only as BCrypt hashes, bound to the requesting user and target email. Defaults: 15-minute expiry, one send per 60 seconds per user, at most five wrong attempts per issued code. Changing email does not bypass the send cooldown. Reissuing invalidates the old challenge. Confirmation body is `{code:"012345"}`; the value is a string preserving leading zeroes. A correct code atomically consumes the challenge and persists verification/date. Wrong-attempt counters commit even when the HTTP response is an error.
+
+| Condition | HTTP | Safe behavior |
+| --- | --- | --- |
+| Malformed/incorrect code, missing email/challenge | 400 | No verification; wrong guesses are counted |
+| Session missing/expired | 401 | Frontend returns to login |
+| Missing/invalid CSRF or disallowed role | 403 | No mutation |
+| Duplicate email/system, consumed code, already verified | 409 | Original record remains valid |
+| Expired code | 410 | Request a new code |
+| Resend cooldown / exhausted guesses | 429 | Cooldown includes `Retry-After` seconds |
+| SMTP disabled/fails | 503 | No newly persisted challenge or false verification |
+| Transaction still locked after five attempts | 503 | Safe error with `Retry-After: 1`; never partial write |
+
+Metrics, alert actions, profile changes and retention use complete transaction retries at READ COMMITTED, with explicit row locks and a maximum of five attempts. Alert transition conflicts remain 409. Server diagnostic details are not exposed to clients. SMTP acceptance proves transport delivery to the configured server; local Mailpit acceptance does not establish external provider delivery.

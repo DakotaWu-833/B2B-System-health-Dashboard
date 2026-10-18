@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import Dashboard from "./Dashboard";
 import Login from "./Login";
+import Profile from "./Profile";
 import { apiFetch } from "./api";
 
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
+  const [view, setView] = useState("dashboard");
   const [health, setHealth] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -65,6 +67,7 @@ function App() {
 
   const handleSessionExpired = useCallback(() => {
     setCurrentUser(null);
+    setView("dashboard");
   }, []);
 
   async function handleLogout() {
@@ -85,7 +88,7 @@ function App() {
       });
 
       if (logoutResponse.status === 401) {
-        setCurrentUser(null);
+        handleSessionExpired();
         return;
       }
 
@@ -93,7 +96,7 @@ function App() {
         throw new Error(`Logout failed with HTTP ${logoutResponse.status}`);
       }
 
-      setCurrentUser(null);
+      handleSessionExpired();
     } catch (requestError) {
       console.error("Logout failed:", requestError);
     }
@@ -111,17 +114,32 @@ function App() {
 
   return (
     <main className="app-shell">
-      <div className="session-bar">
-        <p>
-          Signed in as <strong>{currentUser.username}</strong>
-          <span className="role-badge">{currentUser.role}</span>
-        </p>
-        <button type="button" onClick={handleLogout}>
-          Logout
-        </button>
-      </div>
+      <header className="app-header">
+        <div className="brand-lockup">
+          <span className="brand-mark" aria-hidden="true">SH</span>
+          <div>
+            <p className="brand-name">System Health</p>
+            <p className="brand-context">Operations dashboard</p>
+          </div>
+        </div>
+
+        <div className="account-menu">
+          <div className="account-copy">
+            <span>{currentUser.username}</span>
+            <small>{currentUser.role}</small>
+          </div>
+          <button className="button-secondary" type="button" onClick={handleLogout}>
+            Logout
+          </button>
+        </div>
+      </header>
+
+      <nav className="primary-nav" aria-label="Primary navigation">
+        <a href="#dashboard" onClick={() => setView("dashboard")}>Dashboard</a>
+        <a href="#alert-center-title" onClick={() => setView("dashboard")}>Alert Centre</a>
+        <a href="#profile" onClick={() => setView("profile")}>My profile</a>
+      </nav>
       <section className="hero" aria-labelledby="page-title">
-        <p className="eyebrow">ELEC5619 · Sprint 2 demonstrator</p>
         <h1 id="page-title">B2B System Health Dashboard</h1>
         <p className="hero-copy">
           Monitor service health, inspect recent metrics and triage live alerts
@@ -165,10 +183,10 @@ function App() {
         </button>
       </section>
 
-      <Dashboard
+      {view === "profile" ? <Profile onSessionExpired={handleSessionExpired} /> : <Dashboard
         currentUser={currentUser}
         onSessionExpired={handleSessionExpired}
-      />
+      />}
     </main>
   );
 }

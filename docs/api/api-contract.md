@@ -229,6 +229,80 @@ endpoints to Operations users.
 Metric data is stale when its timestamp is older than `app.metrics.stale-after`, which
 defaults to five minutes (`PT5M`).
 
+### Dashboard alert count and metric KPIs (ELG2-26)
+
+`GET /api/dashboard/summary` retains the five existing stored-system counts and
+adds five fields inside `data`:
+
+| Field | Type / unit | Meaning |
+| --- | --- | --- |
+| `activeAlertCount` | Integer count | All alerts whose status is exactly `ACTIVE`, across all systems |
+| `averageCpuUsage` | Number, percent (0-100), or null | Mean CPU usage of eligible latest readings |
+| `averageMemoryUsage` | Number, percent (0-100), or null | Mean memory usage of eligible latest readings |
+| `averageResponseTime` | Number, milliseconds, or null | Mean response time of eligible latest readings |
+| `evaluatedAt` | UTC ISO-8601 timestamp | Time this summary was evaluated, also used for all freshness decisions in this response |
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "total": 3,
+    "healthy": 1,
+    "warning": 1,
+    "critical": 0,
+    "offline": 1,
+    "activeAlertCount": 2,
+    "averageCpuUsage": 40.00,
+    "averageMemoryUsage": 50.00,
+    "averageResponseTime": 200.00,
+    "evaluatedAt": "2026-10-18T09:30:00Z"
+  },
+  "message": "Dashboard summary retrieved successfully"
+}
+```
+
+Aggregation rules:
+
+- Select at most one reading per system: highest `recordedAt`, then highest
+  metric ID when timestamps tie. Late insertion of an older reading does not
+  replace the latest measurement. Selection happens before eligibility filtering.
+- A reading is eligible only if `availability` is true and it is `FRESH` under
+  `app.metrics.stale-after`. All readings use one evaluation time per request,
+  with the same freshness policy as system details. A timestamp exactly at the
+  freshness cutoff is still fresh; an older timestamp is stale.
+- Each eligible system contributes equally. Historical readings do not increase
+  a system's weight. Missing, stale and unavailable readings are excluded, and
+  an unavailable latest reading never falls back to an older available one.
+- Round each mean to two decimal places using decimal arithmetic and `HALF_UP`.
+  With no eligible readings, all three average fields are explicitly `null`.
+  A measured zero remains the number zero and is not treated as missing.
+- An empty database returns all six counts as zero and all three averages as
+  null. The original five counts still reflect persisted system statuses,
+  independently of metric freshness; reading the summary does not change them.
+- `activeAlertCount` counts alerts, not affected systems or the current alert
+  page. `ACKNOWLEDGED` and `RESOLVED` are excluded. Alert age and metric freshness
+  do not remove an alert from this count. Acknowledgement or resolution changes
+  the count on the next summary request according to the stored alert status.
+- `evaluatedAt` is returned even when there are no eligible readings or systems.
+  It is the summary evaluation time, not a measurement timestamp or proof that a
+  system has fresh data. Display it as the summary update time; individual
+  measurement times remain available in `GET /api/systems` as `lastUpdated`.
+
+The latest readings are fetched in a single batch using
+`MetricRepository.findLatestForAllSystems()`, matching the system-management/list
+workstream's query. Dashboard aggregation does not issue a query per system or
+load full metric history. Access remains authenticated for Operations and
+Management; anonymous requests return `401`. The frontend can consume the new
+fields without changing existing summary field names.
+
+# Sprint 3 system-management extension
+
+See [system management and permission contract](../sprint-3/system-management-api.md)
+for POST /api/systems, PUT /api/systems/{id}, enriched GET /api/systems data,
+validation and role requirements.
+
 ### Evaluated health thresholds (ELG2-25)
 
 `GET /api/systems/{id}` also returns `data.evaluatedThresholds`. Existing response

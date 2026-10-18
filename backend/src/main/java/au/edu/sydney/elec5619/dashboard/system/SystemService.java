@@ -1,15 +1,19 @@
 package au.edu.sydney.elec5619.dashboard.system;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import org.springframework.data.domain.Sort;
 
 import au.edu.sydney.elec5619.dashboard.metric.Metric;
+import au.edu.sydney.elec5619.dashboard.metric.MetricFreshnessPolicy;
 import au.edu.sydney.elec5619.dashboard.metric.MetricReadingResponse;
 import au.edu.sydney.elec5619.dashboard.metric.MetricRepository;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -18,23 +22,34 @@ public class SystemService {
     private final MonitoredSystemRepository monitoredSystemRepository;
     private final MetricRepository metricRepository;
     private final HealthThresholdProperties thresholds;
-    private final Duration staleAfter;
+    private final MetricFreshnessPolicy freshnessPolicy;
 
     public SystemService(
             MonitoredSystemRepository monitoredSystemRepository,
             MetricRepository metricRepository,
             HealthThresholdProperties thresholds,
-            @Value("${app.metrics.stale-after:PT5M}") Duration staleAfter) {
+            MetricFreshnessPolicy freshnessPolicy) {
         this.monitoredSystemRepository = monitoredSystemRepository;
         this.metricRepository = metricRepository;
         this.thresholds = thresholds;
-        this.staleAfter = staleAfter;
+        this.freshnessPolicy = freshnessPolicy;
     }
 
     @Transactional(readOnly = true)
     public List<SystemListItemResponse> getSystems() {
-        return monitoredSystemRepository.findAll().stream()
-                .map(SystemListItemResponse::from)
+        List<MonitoredSystem> systems = monitoredSystemRepository.findAll(Sort.by("id"));
+        if (systems.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, Metric> latest = metricRepository.findLatestForAllSystems().stream()
+                .collect(Collectors.toMap(m -> m.getMonitoredSystem().getId(), Function.identity()));
+        Instant evaluatedAt = Instant.now();
+        return systems.stream()
+                .map(system -> {
+                    Metric metric = latest.get(system.getId());
+                    return SystemListItemResponse.from(
+                            system, metric, freshnessPolicy.dataStatus(metric, evaluatedAt));
+                })
                 .toList();
     }
 
@@ -43,10 +58,10 @@ public class SystemService {
         MonitoredSystem system = monitoredSystemRepository.findById(systemId)
                 .orElseThrow(() -> new MonitoredSystemNotFoundException(systemId));
         Metric latestMetric = metricRepository
-                .findFirstByMonitoredSystemIdOrderByRecordedAtDesc(systemId)
+                .findFirstByMonitoredSystemIdOrderByRecordedAtDescIdDesc(systemId)
                 .orElse(null);
 
-        MetricDataStatus dataStatus = dataStatus(latestMetric);
+        MetricDataStatus dataStatus = freshnessPolicy.dataStatus(latestMetric, Instant.now());
         return new SystemDetailResponse(
                 system.getId(),
                 system.getName(),
@@ -60,14 +75,61 @@ public class SystemService {
                 thresholds);
     }
 
-    private MetricDataStatus dataStatus(Metric metric) {
-        if (metric == null) {
-            return MetricDataStatus.NO_DATA;
+    @Transactional
+    public SystemListItemResponse createSystem(SystemMutationRequest request) {
+        if (monitoredSystemRepository.existsByNameAndTypeAndHost(
+                request.name().trim(), request.type().trim(), request.host().trim())) {
+            throw new DuplicateMonitoredSystemException();
         }
-        Instant staleBefore = Instant.now().minus(staleAfter);
-        return metric.getRecordedAt().isBefore(staleBefore)
-                ? MetricDataStatus.STALE
-                : MetricDataStatus.FRESH;
+        MonitoredSystem system = new MonitoredSystem(
+                request.name().trim(),
+                request.type().trim(),
+                request.host().trim(),
+                HealthStatus.HEALTHY,
+                normaliseDescription(request.description()));
+        return SystemListItemResponse.from(saveSystem(system));
+    }
+
+    @Transactional
+    public SystemListItemResponse updateSystem(Long systemId, SystemMutationRequest request) {
+        MonitoredSystem system = monitoredSystemRepository.findByIdForUpdate(systemId)
+                .orElseThrow(() -> new MonitoredSystemNotFoundException(systemId));
+        if (monitoredSystemRepository.existsByNameAndTypeAndHostAndIdNot(
+                request.name().trim(), request.type().trim(), request.host().trim(), systemId)) {
+            throw new DuplicateMonitoredSystemException();
+        }
+        system.updateDetails(
+                request.name().trim(),
+                request.type().trim(),
+                request.host().trim(),
+                normaliseDescription(request.description()));
+        saveSystem(system);
+        Metric latestMetric = metricRepository
+                .findFirstByMonitoredSystemIdOrderByRecordedAtDescIdDesc(systemId).orElse(null);
+        return SystemListItemResponse.from(
+                system, latestMetric, freshnessPolicy.dataStatus(latestMetric, Instant.now()));
+    }
+
+    private MonitoredSystem saveSystem(MonitoredSystem system) {
+        try {
+            return monitoredSystemRepository.saveAndFlush(system);
+        } catch (DataIntegrityViolationException exception) {
+            // A concurrent request can insert the identity after the pre-check.
+            for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+                if (cause.getMessage() != null && cause.getMessage().toLowerCase(java.util.Locale.ROOT)
+                        .contains("uk_monitored_systems_identity")) {
+                    throw new DuplicateMonitoredSystemException();
+                }
+            }
+            throw exception;
+        }
+    }
+
+    private String normaliseDescription(String description) {
+        if (description == null || description.isBlank()) {
+            return null;
+        }
+        return description.trim();
     }
 
     private List<String> statusReasons(Metric metric, MetricDataStatus dataStatus) {

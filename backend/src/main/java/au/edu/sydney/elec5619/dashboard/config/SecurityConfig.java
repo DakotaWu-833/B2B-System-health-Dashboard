@@ -55,6 +55,8 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(HttpMethod.POST, "/api/systems").hasRole("OPERATIONS")
+                        .requestMatchers(HttpMethod.PUT, "/api/systems/*").hasRole("OPERATIONS")
                         .requestMatchers(
                                 "/api/health",
                                 "/api/auth/csrf",

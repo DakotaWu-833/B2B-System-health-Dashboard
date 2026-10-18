@@ -1,13 +1,16 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { apiFetch } from "./api";
 
 function Login({ onLogin }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submissionInProgress = useRef(false);
 
   async function handleSubmit(event) {
     event.preventDefault();
+    if (submissionInProgress.current) return;
     setError("");
 
     if (!username.trim() || !password) {
@@ -15,6 +18,8 @@ function Login({ onLogin }) {
       return;
     }
 
+    submissionInProgress.current = true;
+    setIsSubmitting(true);
     try {
       const csrfResponse = await apiFetch("/api/auth/csrf");
 
@@ -49,17 +54,21 @@ function Login({ onLogin }) {
     } catch (error) {
       console.error("Login failed:", error);
       setError("Unable to connect to the authentication service.");
+    } finally {
+      submissionInProgress.current = false;
+      setIsSubmitting(false);
     }
   }
 
   return (
     <main className="login-page">
       <section className="login-card">
+        <div className="login-brand" aria-hidden="true">SH</div>
         <p className="eyebrow">ELEC5619 · System Health Dashboard</p>
 
         <h1>Sign in</h1>
 
-        <p>
+        <p className="login-copy">
           Sign in to access the system monitoring dashboard.
         </p>
 
@@ -82,9 +91,11 @@ function Login({ onLogin }) {
             autoComplete="current-password"
           />
 
-          {error && <p className="error-message">{error}</p>}
+          {error && <p className="error-message" role="alert">{error}</p>}
 
-          <button type="submit">Login</button>
+          <button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Signing in…" : "Login"}
+          </button>
         </form>
       </section>
     </main>

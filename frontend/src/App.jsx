@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Dashboard from "./Dashboard";
 import Login from "./Login";
 import { apiFetch } from "./api";
@@ -9,6 +9,9 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [authLoading, setAuthLoading] = useState(true);
+  const [logoutError, setLogoutError] = useState("");
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const logoutInProgress = useRef(false);
 
   const checkBackend = useCallback(async (signal) => {
     setIsLoading(true);
@@ -64,23 +67,31 @@ function App() {
   }, []);
 
   const handleSessionExpired = useCallback(() => {
+    setLogoutError("");
     setCurrentUser(null);
   }, []);
 
   async function handleLogout() {
+    if (logoutInProgress.current) return;
+    logoutInProgress.current = true;
+    setIsLoggingOut(true);
+    setLogoutError("");
     try {
       const csrfResponse = await apiFetch("/api/auth/csrf");
+
+      if (csrfResponse.status === 401) { setCurrentUser(null); return; }
 
       if (!csrfResponse.ok) {
         throw new Error(`Failed to get CSRF token: HTTP ${csrfResponse.status}`);
       }
 
       const csrfResult = await csrfResponse.json();
+      if (!csrfResult.success || !csrfResult.data?.token) throw new Error("CSRF token unavailable");
 
       const logoutResponse = await apiFetch("/api/auth/logout", {
         method: "POST",
         headers: {
-          "X-CSRF-TOKEN": csrfResult.data.token,
+          [csrfResult.data.headerName || "X-CSRF-TOKEN"]: csrfResult.data.token,
         },
       });
 
@@ -93,9 +104,16 @@ function App() {
         throw new Error(`Logout failed with HTTP ${logoutResponse.status}`);
       }
 
+      const logoutResult = await logoutResponse.json();
+      if (!logoutResult.success) throw new Error("Logout was not confirmed");
+
       setCurrentUser(null);
     } catch (requestError) {
       console.error("Logout failed:", requestError);
+      setLogoutError("Unable to log out. Check your connection and try Logout again.");
+    } finally {
+      logoutInProgress.current = false;
+      setIsLoggingOut(false);
     }
   }
 
@@ -106,22 +124,37 @@ function App() {
   }
 
   if (!currentUser) {
-    return <Login onLogin={setCurrentUser} />;
+    return <Login onLogin={(user) => { setLogoutError(""); setCurrentUser(user); }} />;
   }
 
   return (
     <main className="app-shell">
-      <div className="session-bar">
-        <p>
-          Signed in as <strong>{currentUser.username}</strong>
-          <span className="role-badge">{currentUser.role}</span>
-        </p>
-        <button type="button" onClick={handleLogout}>
-          Logout
-        </button>
-      </div>
+      <header className="app-header">
+        <div className="brand-lockup">
+          <span className="brand-mark" aria-hidden="true">SH</span>
+          <div>
+            <p className="brand-name">System Health</p>
+            <p className="brand-context">Operations dashboard</p>
+          </div>
+        </div>
+
+        <div className="account-menu">
+          <div className="account-copy">
+            <span>{currentUser.username}</span>
+            <small>{currentUser.role}</small>
+          </div>
+          <button className="button-secondary" type="button" onClick={handleLogout} disabled={isLoggingOut}>
+            {isLoggingOut ? "Logging out…" : "Logout"}
+          </button>
+        </div>
+      </header>
+      {logoutError && <p className="error-message" role="alert">{logoutError}</p>}
+
+      <nav className="primary-nav" aria-label="Primary navigation">
+        <a href="#dashboard">Dashboard</a>
+        <a href="#alert-center-title">Alert Centre</a>
+      </nav>
       <section className="hero" aria-labelledby="page-title">
-        <p className="eyebrow">ELEC5619 · Sprint 2 demonstrator</p>
         <h1 id="page-title">B2B System Health Dashboard</h1>
         <p className="hero-copy">
           Monitor service health, inspect recent metrics and triage live alerts

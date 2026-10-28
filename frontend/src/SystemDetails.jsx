@@ -90,8 +90,8 @@ export default function SystemDetails({system,currentUser,onSessionExpired,onMet
             <MetricTrend title="Response time" metrics={metrics} unit="ms" series={[{key:"responseTime",label:"Response time",color:"#8756b7"}]}/></div>
           <div className="table-wrapper"><table aria-label="Recent metric readings"><thead><tr><th>Time</th><th>CPU</th><th>Memory</th><th>Response Time</th><th>Available</th></tr></thead><tbody>
             {metrics.length?metrics.map(metric=><tr key={metric.metricId}><td>{formatTime(metric.timestamp)}</td><td>{formatMetric(metric.cpuUsage,"%")}</td><td>{formatMetric(metric.memoryUsage,"%")}</td><td>{formatMetric(metric.responseTime," ms")}</td><td>{metric.availability?"Yes":"No"}</td></tr>):!historyBusy&&<tr><td colSpan="5">No recent metrics available.</td></tr>}</tbody></table></div>
-          <nav className="pagination" aria-label="Metric history pages"><button className="button-secondary" disabled={index===0||historyBusy} onClick={()=>setIndex(value=>value-1)}>Previous readings</button><span>Readings page {index+1} · {metrics.length} readings</span>
-            <button className="button-secondary" disabled={historyBusy||(!pages[index+1]&&!activePage?.nextCursor)} onClick={next}>Next readings</button></nav></>}
+          <nav className="pagination" aria-label="Metric history pages"><button className="button-secondary" disabled={index===0||historyBusy} onClick={()=>setIndex(value=>value-1)}>Previous page</button><span>Page {index+1} · {metrics.length} readings</span>
+            <button className="button-secondary" disabled={historyBusy||(!pages[index+1]&&!activePage?.nextCursor)} onClick={next}>Next page</button></nav></>}
       </div>}
   </section>;
 }

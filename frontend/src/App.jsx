@@ -2,11 +2,24 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Dashboard from "./Dashboard";
 import Login from "./Login";
 import Profile from "./Profile";
+import MetricRetention from "./MetricRetention";
+import Sidebar from "./Sidebar";
+import ConnectionStatus from "./ConnectionStatus";
+import SystemsPage from "./SystemsPage";
+import AlertsPage from "./AlertsPage";
+import useDeferredResolve from "./useDeferredResolve";
 import { apiFetch } from "./api";
+import { HeaderToolsProvider } from "./HeaderTools";
+
+const pageNames = { dashboard: "Dashboard", system: "System", alerts: "Alert Center", profile: "My profile", retention: "Metric retention" };
+function routeFromHash() { const hash = window.location.hash.slice(1); return ({ "alert-center-title": "alerts", "metric-retention": "retention" })[hash] || (pageNames[hash] ? hash : "dashboard"); }
 
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
-  const [view, setView] = useState("dashboard");
+  const [view, setView] = useState(() => routeFromHash());
+  const [headerTarget, setHeaderTarget] = useState(null);
+  const [alertVersion, setAlertVersion] = useState(0);
+  useEffect(() => { const changed = () => setView(routeFromHash()); window.addEventListener("hashchange", changed); return () => window.removeEventListener("hashchange", changed); }, []);
   const [health, setHealth] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -120,94 +133,30 @@ function App() {
     }
   }
 
-  const backendOnline = health?.status === "UP";
+  const resolution = useDeferredResolve(currentUser, handleSessionExpired, () => setAlertVersion(version => version + 1));
+  const navigate = id => { setView(id); };
+  if (authLoading) return <p className="startup-message">Checking session...</p>;
+  if (!currentUser) return <Login onLogin={user => { setLogoutError(""); setCurrentUser(user); setView("dashboard"); window.location.hash = "dashboard"; }} />;
 
-  if (authLoading) {
-    return <p>Checking session...</p>;
-  }
-
-  if (!currentUser) {
-    return <Login onLogin={(user) => { setLogoutError(""); setCurrentUser(user); }} />;
-  }
-
-  return (
-    <main className="app-shell">
-      <header className="app-header">
-        <div className="brand-lockup">
-          <span className="brand-mark" aria-hidden="true">SH</span>
-          <div>
-            <p className="brand-name">System Health</p>
-            <p className="brand-context">Operations dashboard</p>
-          </div>
-        </div>
-
-        <div className="account-menu">
-          <div className="account-copy">
-            <span>{currentUser.username}</span>
-            <small>{currentUser.role}</small>
-          </div>
-          <button className="button-secondary" type="button" onClick={handleLogout} disabled={isLoggingOut}>
-            {isLoggingOut ? "Logging out…" : "Logout"}
-          </button>
-        </div>
-      </header>
-      {logoutError && <p className="error-message" role="alert">{logoutError}</p>}
-
-      <nav className="primary-nav" aria-label="Primary navigation">
-        <a href="#dashboard" onClick={() => setView("dashboard")}>Dashboard</a>
-        <a href="#alert-center-title" onClick={() => setView("dashboard")}>Alert Centre</a>
-        <a href="#profile" onClick={() => setView("profile")}>My profile</a>
-      </nav>
-      <section className="hero" aria-labelledby="page-title">
-        <h1 id="page-title">B2B System Health Dashboard</h1>
-        <p className="hero-copy">
-          Monitor service health, inspect recent metrics and triage live alerts
-          from one operational view.
-        </p>
-      </section>
-
-      <section className="connection-card" aria-live="polite">
-        <div>
-          <p className="card-label">Integration check</p>
-          <h2>Frontend → Backend</h2>
-        </div>
-
-        <span
-          className={`status-badge ${backendOnline ? "status-up" : "status-down"}`}
-        >
-          {isLoading ? "CHECKING" : backendOnline ? "CONNECTED" : "OFFLINE"}
-        </span>
-
-        {health && (
-          <dl className="health-details">
-            <div>
-              <dt>Service</dt>
-              <dd>{health.service}</dd>
-            </div>
-            <div>
-              <dt>Status</dt>
-              <dd>{health.status}</dd>
-            </div>
-            <div>
-              <dt>Checked</dt>
-              <dd>{new Date(health.timestamp).toLocaleString()}</dd>
-            </div>
-          </dl>
-        )}
-
-        {error && <p className="error-message">{error}</p>}
-
-        <button type="button" onClick={() => checkBackend()} disabled={isLoading}>
-          {isLoading ? "Checking…" : "Check again"}
-        </button>
-      </section>
-
-      {view === "profile" ? <Profile onSessionExpired={handleSessionExpired} /> : <Dashboard
-        currentUser={currentUser}
-        onSessionExpired={handleSessionExpired}
-      />}
-    </main>
-  );
+  return <div className="workspace-layout">
+    <Sidebar view={view} currentUser={currentUser} onNavigate={navigate} onLogout={handleLogout} isLoggingOut={isLoggingOut} />
+    <div className="workspace-frame"><header className="workspace-header"><div><p className="section-kicker">System Health / Workspace</p><h1>{pageNames[view]}</h1></div><div className="workspace-header-tools" ref={setHeaderTarget} /></header>
+      <HeaderToolsProvider value={headerTarget}><main className="workspace-main" id="workspace-main">
+        {logoutError&&<p className="error-message" role="alert">{logoutError}</p>}
+        {view === "dashboard" && <><div className="workspace-intro"><p>Operational health, at a glance.</p><ConnectionStatus health={health} isLoading={isLoading} error={error} onCheck={()=>checkBackend()} /></div><Dashboard onSessionExpired={handleSessionExpired} refreshVersion={alertVersion} /></>}
+        {view === "system" && <SystemsPage currentUser={currentUser} onSessionExpired={handleSessionExpired} />}
+        {view === "alerts" && <AlertsPage currentUser={currentUser} onSessionExpired={handleSessionExpired} refreshVersion={alertVersion}
+          onAlertsChanged={()=>setAlertVersion(version=>version+1)} onResolveRequested={resolution.schedule} pendingResolution={resolution.pending} />}
+        {view === "profile" && <Profile onSessionExpired={handleSessionExpired} />}
+        {view === "retention" && <MetricRetention currentUser={currentUser} onSessionExpired={handleSessionExpired} />}
+      </main></HeaderToolsProvider>
+    </div>
+    {(resolution.pending||resolution.message||resolution.error)&&<aside className="resolution-toast" aria-label="Alert resolution notification">
+      {resolution.pending ? <><div role="status"><strong>{resolution.pending.sending?"Saving resolution…":`Resolve ${resolution.pending.alert.systemName}?`}</strong>
+        <p>{resolution.pending.sending?"Waiting for the server. This action can no longer be cancelled.":`Scheduled in ${resolution.seconds}s. The original ${resolution.pending.alert.status} state is unchanged until then.`}</p></div>
+        {!resolution.pending.sending&&<button className="button-secondary" onClick={resolution.cancel}>Undo resolve</button>}</>:
+        <><p role={resolution.error?"alert":"status"}>{resolution.error||resolution.message}</p><button className="button-secondary button-small" onClick={resolution.dismiss}>Dismiss</button></>}
+    </aside>}
+  </div>;
 }
-
 export default App;

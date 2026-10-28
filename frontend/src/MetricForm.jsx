@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { apiFetch } from "./api";
 
-export default function MetricForm({ system, onSubmitted, onSessionExpired }) {
+export default function MetricForm({ system, onSubmitted, onSessionExpired, showTitle = true }) {
   const [values, setValues] = useState({ cpuUsage: "", memoryUsage: "", responseTime: "", availability: "true" });
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -50,8 +50,8 @@ export default function MetricForm({ system, onSubmitted, onSessionExpired }) {
     }
   }
 
-  return <form className="system-form metric-form" onSubmit={handleSubmit} aria-labelledby="metric-form-title">
-    <h3 id="metric-form-title">Submit a metric reading</h3>
+  return <form className="system-form metric-form" onSubmit={handleSubmit} aria-labelledby={showTitle ? "metric-form-title" : "detail-tab-submit"}>
+    {showTitle && <h3 id="metric-form-title">Submit a metric reading</h3>}
     <p className="section-copy">Record a manual observation for {system.name}. Saving updates system health and may generate alerts. The server records the measurement time.</p>
     <fieldset disabled={isSubmitting}>
       <legend className="visually-hidden">Metric reading</legend>

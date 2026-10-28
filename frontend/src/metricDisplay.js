@@ -9,3 +9,7 @@ export function formatTime(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "Time unavailable" : date.toLocaleString();
 }
+
+export function readingUpdateLabel(status) {
+  return { FRESH: "Recent data", STALE: "Outdated data", NO_DATA: "No readings" }[status] || "Update status unknown";
+}

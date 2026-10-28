@@ -14,14 +14,16 @@ export function apiFetch(path, options = {}) {
 }
 
 export class ApiError extends Error {
-  constructor(message, status) { super(message); this.status = status; }
+  constructor(message, status, retryAfter = 0) { super(message); this.status = status; this.retryAfter = retryAfter; }
 }
 
 export async function apiJson(path, options = {}) {
   const response = await apiFetch(path, options);
   const result = await response.json().catch(() => null);
   if (!response.ok || !result?.success) {
-    throw new ApiError(result?.message || "Unable to complete this request. Please try again.", response.status);
+    const retryHeader = response.headers?.get?.("Retry-After");
+    const retryAfter = retryHeader && /^\d+$/.test(retryHeader) ? Number(retryHeader) : 0;
+    throw new ApiError(result?.message || "Unable to complete this request. Please try again.", response.status, retryAfter);
   }
   return result.data;
 }

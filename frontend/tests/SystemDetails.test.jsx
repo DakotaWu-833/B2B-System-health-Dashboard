@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import SystemDetails from "../src/SystemDetails";
 
@@ -119,6 +119,8 @@ describe("SystemDetails", () => {
 
     render(<SystemDetails system={system} />);
 
+    await screen.findByText("Payment API");
+    fireEvent.click(screen.getByRole("tab", { name: "Recent Metrics" }));
     expect(
       await screen.findByRole("alert")
     ).toHaveTextContent("Failed to load system metrics.");
@@ -147,7 +149,7 @@ describe("SystemDetails", () => {
         });
       }
 
-      if (url === "/api/systems/1/metrics/history?size=20") {
+      if (url === "/api/systems/1/metrics/history?size=10") {
         return new Promise((resolve, reject) => {
           resolveFirstMetrics = resolve;
 
@@ -172,7 +174,7 @@ describe("SystemDetails", () => {
         });
       }
 
-      if (url === "/api/systems/2/metrics/history?size=20") {
+      if (url === "/api/systems/2/metrics/history?size=10") {
         return Promise.resolve({
           ok: true,
           json: async () => ({

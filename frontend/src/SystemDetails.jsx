@@ -3,6 +3,7 @@ import { apiJson } from "./api";
 import { MetricTrend } from "./Charts";
 import { formatMetric, formatTime, readingUpdateLabel } from "./metricDisplay";
 import MetricForm from "./MetricForm";
+import { useModalNavigation } from "./Modal";
 
 const tabs = [["basic","Basic information"],["history","Recent Metrics"],["submit","Submit a metric reading"]];
 const SIZE=10;
@@ -11,6 +12,8 @@ export default function SystemDetails({system,currentUser,onSessionExpired,onMet
   const [pages,setPages]=useState([]);const [index,setIndex]=useState(0);const [historyBusy,setHistoryBusy]=useState(false);const [historyError,setHistoryError]=useState("");
   const [range,setRange]=useState({from:"",to:""});const [feedback,setFeedback]=useState("");const historyController=useRef(null);const tabRefs=useRef([]);
   const allowed=currentUser?.role==="OPERATIONS";
+  const modal=useModalNavigation();
+  const selectTab=id=>{ if(id===tab)return; if(modal)modal.requestLeave(()=>setTab(id));else setTab(id); };
   async function requestHistory(query,pageIndex=0,reset=false) {
     historyController.current?.abort();const controller=new AbortController();historyController.current=controller;setHistoryBusy(true);setHistoryError("");
     try{const data=await apiJson(`/api/systems/${system.id}/metrics/history?${query}`,{signal:controller.signal});if(controller.signal.aborted)return;
@@ -42,7 +45,7 @@ export default function SystemDetails({system,currentUser,onSessionExpired,onMet
     if(event.key==="ArrowRight")next=enabled[(enabled.indexOf(position)+1)%enabled.length];
     if(event.key==="ArrowLeft")next=enabled[(enabled.indexOf(position)+enabled.length-1)%enabled.length];
     if(event.key==="Home")next=enabled[0];if(event.key==="End")next=enabled.at(-1);
-    if(next!==undefined){event.preventDefault();setTab(tabs[next][0]);tabRefs.current[next]?.focus();}
+    if(next!==undefined){event.preventDefault();selectTab(tabs[next][0]);tabRefs.current[next]?.focus();}
   }
   const outdatedNote = "The latest reading is outside the current update window and may not reflect the system’s health now.";
   const noReadingsNote = "No measurements are available. The stored health status does not confirm measured health.";
@@ -55,7 +58,7 @@ export default function SystemDetails({system,currentUser,onSessionExpired,onMet
   return <section className="system-details"><h2 className="visually-hidden">System Details</h2>
     <div className="detail-tabs" role="tablist" aria-label="System detail sections">{tabs.map(([id,label],i)=><button key={id} type="button" role="tab" ref={node=>{tabRefs.current[i]=node;}}
       id={`detail-tab-${id}`} aria-controls={`detail-panel-${id}`} aria-selected={tab===id} tabIndex={tab===id?0:-1} disabled={id==="submit"&&!allowed}
-      title={id==="submit"&&!allowed?"Only Operations users can submit readings":undefined} onKeyDown={event=>tabKey(event,i)} onClick={()=>setTab(id)}>{label}</button>)}</div>
+      title={id==="submit"&&!allowed?"Only Operations users can submit readings":undefined} onKeyDown={event=>tabKey(event,i)} onClick={()=>selectTab(id)}>{label}</button>)}</div>
     {feedback&&<p role="status" className="success-message">{feedback}</p>}
     {error?<><p role="alert" className="error-message">{error}</p><button onClick={()=>setReload(value=>value+1)}>Retry system details</button></>:
       !details?<p>Loading system details...</p>:<div role="tabpanel" id={`detail-panel-${tab}`} aria-labelledby={`detail-tab-${tab}`} tabIndex={0} className="detail-tabpanel">
@@ -86,8 +89,8 @@ export default function SystemDetails({system,currentUser,onSessionExpired,onMet
           <p className="section-copy">Last seven days by default · Up to 31 days per range · 10 readings per page.</p>
           {historyBusy&&<p role="status">Loading history…</p>}{historyError&&<p role="alert" className="error-message">{historyError}</p>}
           {historyError&&<button className="button-secondary" onClick={event=>applyRange({preventDefault:()=>{}})}>Retry history</button>}
-          <div className="metric-chart-grid"><MetricTrend title="Resource usage" metrics={metrics} unit="%" maximum={100} series={[{key:"cpuUsage",label:"CPU",color:"#3866cd"},{key:"memoryUsage",label:"Memory",color:"#138b82"}]}/>
-            <MetricTrend title="Response time" metrics={metrics} unit="ms" series={[{key:"responseTime",label:"Response time",color:"#8756b7"}]}/></div>
+          <div className="metric-chart-grid"><MetricTrend title="Resource usage" metrics={metrics} unit="%" maximum={100} series={[{key:"cpuUsage",label:"CPU",color:"var(--chart-cpu)"},{key:"memoryUsage",label:"Memory",color:"var(--chart-memory)"}]}/>
+            <MetricTrend title="Response time" metrics={metrics} unit="ms" series={[{key:"responseTime",label:"Response time",color:"var(--chart-response)"}]}/></div>
           <div className="table-wrapper"><table aria-label="Recent metric readings"><thead><tr><th>Time</th><th>CPU</th><th>Memory</th><th>Response Time</th><th>Available</th></tr></thead><tbody>
             {metrics.length?metrics.map(metric=><tr key={metric.metricId}><td>{formatTime(metric.timestamp)}</td><td>{formatMetric(metric.cpuUsage,"%")}</td><td>{formatMetric(metric.memoryUsage,"%")}</td><td>{formatMetric(metric.responseTime," ms")}</td><td>{metric.availability?"Yes":"No"}</td></tr>):!historyBusy&&<tr><td colSpan="5">No recent metrics available.</td></tr>}</tbody></table></div>
           <nav className="pagination" aria-label="Metric history pages"><button className="button-secondary" disabled={index===0||historyBusy} onClick={()=>setIndex(value=>value-1)}>Previous page</button><span>Page {index+1} · {metrics.length} readings</span>

@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { apiFetch } from "./api";
+import { useModalGuard } from "./Modal";
 
 export default function SystemForm({ system, onSaved, onCancel, onSessionExpired }) {
   const [values, setValues] = useState({
@@ -10,6 +11,7 @@ export default function SystemForm({ system, onSaved, onCancel, onSessionExpired
   const [error, setError] = useState("");
   const submitting = useRef(false);
   const editing = Boolean(system);
+  const modal = useModalGuard(Object.entries(values).some(([key, value]) => value !== (system?.[key] ?? "")), isSaving);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -72,7 +74,7 @@ export default function SystemForm({ system, onSaved, onCancel, onSessionExpired
         {error && <p className="error-message" role="alert">{error}</p>}
         <div className="row-actions">
           <button type="submit">{isSaving ? "Saving…" : editing ? "Save changes" : "Create system"}</button>
-          <button type="button" className="button-secondary" onClick={onCancel}>Cancel</button>
+          <button type="button" className="button-secondary" onClick={() => modal ? modal.requestLeave(onCancel) : onCancel()}>Cancel</button>
         </div>
       </fieldset>
     </form>

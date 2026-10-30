@@ -10,12 +10,16 @@ import AlertsPage from "./AlertsPage";
 import useDeferredResolve from "./useDeferredResolve";
 import { apiFetch } from "./api";
 import { HeaderToolsProvider } from "./HeaderTools";
+import Icon from "./Icons";
 
 const pageNames = { dashboard: "Dashboard", system: "System", alerts: "Alert Center", profile: "My profile", retention: "Metric retention" };
 function routeFromHash() { const hash = window.location.hash.slice(1); return ({ "alert-center-title": "alerts", "metric-retention": "retention" })[hash] || (pageNames[hash] ? hash : "dashboard"); }
 
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const closeMobile = useCallback(() => setMobileOpen(false), []);
   const [view, setView] = useState(() => routeFromHash());
   const [headerTarget, setHeaderTarget] = useState(null);
   const [alertVersion, setAlertVersion] = useState(0);
@@ -135,15 +139,20 @@ function App() {
 
   const resolution = useDeferredResolve(currentUser, handleSessionExpired, () => setAlertVersion(version => version + 1));
   const navigate = id => { setView(id); };
-  if (authLoading) return <p className="startup-message">Checking session...</p>;
+  if (authLoading) return <main className="startup-message" role="status"><span className="brand-symbol" aria-hidden="true"><Icon name="activity" /></span><span className="spinner" aria-hidden="true" /><p>Checking session...</p></main>;
   if (!currentUser) return <Login onLogin={user => { setLogoutError(""); setCurrentUser(user); setView("dashboard"); window.location.hash = "dashboard"; }} />;
 
-  return <div className="workspace-layout">
-    <Sidebar view={view} currentUser={currentUser} onNavigate={navigate} onLogout={handleLogout} isLoggingOut={isLoggingOut} />
-    <div className="workspace-frame"><header className="workspace-header"><div><p className="section-kicker">System Health / Workspace</p><h1>{pageNames[view]}</h1></div><div className="workspace-header-tools" ref={setHeaderTarget} /></header>
-      <HeaderToolsProvider value={headerTarget}><main className="workspace-main" id="workspace-main">
+  return <div className={`workspace-layout${collapsed ? " is-nav-collapsed" : ""}`}>
+    <a className="skip-link" href="#workspace-main" onClick={event => { event.preventDefault(); document.getElementById("workspace-main")?.focus(); }}>Skip to main content</a>
+    <Sidebar view={view} currentUser={currentUser} onNavigate={navigate} onLogout={handleLogout} isLoggingOut={isLoggingOut}
+      collapsed={collapsed} onToggleCollapse={() => setCollapsed(value => !value)} mobileOpen={mobileOpen} onCloseMobile={closeMobile} />
+    <div className="workspace-frame"><header className="workspace-header"><div className="workspace-header-leading">
+      <button type="button" className="mobile-menu-button" aria-label="Open navigation" aria-expanded={mobileOpen} aria-controls="workspace-sidebar" onClick={() => setMobileOpen(true)}><Icon name="menu" /></button>
+      <div className="workspace-header-title"><p className="workspace-breadcrumb">Workspace <span aria-hidden="true">/</span> <span>{pageNames[view]}</span></p><h1>{pageNames[view]}</h1></div>
+      </div><div className="workspace-header-tools" ref={setHeaderTarget} /></header>
+      <HeaderToolsProvider value={headerTarget}><main className="workspace-main" id="workspace-main" tabIndex={-1}>
         {logoutError&&<p className="error-message" role="alert">{logoutError}</p>}
-        {view === "dashboard" && <><div className="workspace-intro"><p>Operational health, at a glance.</p><ConnectionStatus health={health} isLoading={isLoading} error={error} onCheck={()=>checkBackend()} /></div><Dashboard onSessionExpired={handleSessionExpired} refreshVersion={alertVersion} /></>}
+        {view === "dashboard" && <><div className="workspace-intro"><p>A little clarity for your everyday operations.</p><ConnectionStatus health={health} isLoading={isLoading} error={error} onCheck={()=>checkBackend()} /></div><Dashboard onSessionExpired={handleSessionExpired} refreshVersion={alertVersion} /></>}
         {view === "system" && <SystemsPage currentUser={currentUser} onSessionExpired={handleSessionExpired} />}
         {view === "alerts" && <AlertsPage currentUser={currentUser} onSessionExpired={handleSessionExpired} refreshVersion={alertVersion}
           onAlertsChanged={()=>setAlertVersion(version=>version+1)} onResolveRequested={resolution.schedule} pendingResolution={resolution.pending} />}

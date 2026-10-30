@@ -459,6 +459,13 @@ The project will prioritise a **reliable and functional implementation of the co
 Current integration: **develop-3**, stable delivery: **main**. See [Sprint 3 integration](docs/sprint-3/README.md) for the current API/UI scope and evidence.
 
 
+### Complete application in Docker
+
+The StudyCrew-inspired UI can be run with the API, MySQL and local email inbox
+using the separate [full application Docker setup](docs/ui-docker.md).
+See [UI verification](docs/ui-refresh-verification.md) for the design scope,
+automated checks and browser acceptance results.
+
 ### Prerequisites
 
 - Java 21

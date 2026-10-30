@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "./api";
+import { collectionPage, nameIncludes, orderAlerts, readCollection } from "./collectionQuery";
+import HeaderTools from "./HeaderTools";
 
 const PAGE_SIZE = 5;
-const STATUS_OPTIONS = ["ACTIVE", "ACKNOWLEDGED", "RESOLVED", "ALL"];
+const STATUS_OPTIONS = ["ALL", "ACTIVE", "ACKNOWLEDGED", "RESOLVED"];
 
 function formatLabel(value) {
   return value
@@ -25,9 +27,14 @@ function emptyPage() {
 }
 
 function AlertCenter({ currentUser, onSessionExpired, onAlertsChanged, systems = [], refreshVersion = 0,
-  onLoadMoreSystems, hasMoreSystems = false, systemsLoading = false, systemsError = "" }) {
-  const [statusFilter, setStatusFilter] = useState("ACTIVE");
+  onLoadMoreSystems, hasMoreSystems = false, systemsLoading = false, systemsError = "", onResolveRequested, pendingResolution }) {
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [systemFilter, setSystemFilter] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [keyword, setKeyword] = useState("");
+  const [sort, setSort] = useState({ field: null, direction: null, custom: false });
+  const collection = useRef(null);
+  const lastRefreshVersion = useRef(refreshVersion);
   const [alertPage, setAlertPage] = useState(emptyPage);
   const [isLoading, setIsLoading] = useState(true);
   const [actionAlertId, setActionAlertId] = useState(null);
@@ -50,6 +57,18 @@ function AlertCenter({ currentUser, onSessionExpired, onAlertsChanged, systems =
       setError("");
 
       try {
+        if (keyword || sort.custom) {
+          const key = JSON.stringify([statusFilter, systemFilter]);
+          const parameters = {};
+          if (statusFilter !== "ALL") parameters.status = statusFilter;
+          if (systemFilter) parameters.systemId = systemFilter;
+          const items = collection.current?.key === key ? collection.current.items : await readCollection("/api/alerts", { signal: controller.signal, parameters, idKey: "alertId" });
+          if (!isCurrent()) return;
+          collection.current = { key, items };
+          const matches = items.filter(alert => nameIncludes(alert.systemName, keyword));
+          setAlertPage(collectionPage(sort.custom ? orderAlerts(matches, sort.field, sort.direction) : matches, requestedPage, PAGE_SIZE));
+          return;
+        }
         let pageToLoad = Math.max(0, requestedPage);
         while (isCurrent()) {
           const query = new URLSearchParams({ page: String(pageToLoad), size: String(PAGE_SIZE) });
@@ -85,17 +104,28 @@ function AlertCenter({ currentUser, onSessionExpired, onAlertsChanged, systems =
         }
       }
     },
-    [onSessionExpired, statusFilter, systemFilter]
+    [onSessionExpired, statusFilter, systemFilter, keyword, sort]
   );
 
   useEffect(() => {
-    setFeedback("");
+    if (lastRefreshVersion.current !== refreshVersion) {
+      collection.current = null;
+      lastRefreshVersion.current = refreshVersion;
+    }
     loadAlerts(0);
     return () => {
       latestRequest.current += 1;
       requestController.current?.abort();
     };
   }, [loadAlerts, refreshVersion]);
+
+  useEffect(() => { setFeedback(""); }, [statusFilter, systemFilter, keyword]);
+
+  function toggleSort(field) {
+    setSort(current => current.field === field && current.direction === "desc"
+      ? { field: null, direction: null, custom: false }
+      : { field, direction: current.field === field && current.direction === "asc" ? "desc" : "asc", custom: true });
+  }
 
   async function updateAlert(alert, action) {
     if (updateInProgress.current) return;
@@ -142,6 +172,7 @@ function AlertCenter({ currentUser, onSessionExpired, onAlertsChanged, systems =
           action === "acknowledge" ? "acknowledged" : "resolved"
         } successfully.`
       );
+      collection.current = null;
       await loadAlerts(alertPage.page);
       await onAlertsChanged?.();
     } catch (requestError) {
@@ -157,7 +188,7 @@ function AlertCenter({ currentUser, onSessionExpired, onAlertsChanged, systems =
     <section className="alert-center" aria-labelledby="alert-center-title">
       <div className="section-header">
         <div>
-          <h2 id="alert-center-title">Alert Centre</h2>
+          <h2 id="alert-center-title">Alert Center</h2>
           <p className="section-copy">
             Review operational incidents and move them through a controlled
             response workflow.
@@ -191,13 +222,21 @@ function AlertCenter({ currentUser, onSessionExpired, onAlertsChanged, systems =
           <button
             className="button-secondary"
             type="button"
-            onClick={() => loadAlerts(alertPage.page)}
+            onClick={() => { collection.current = null; loadAlerts(alertPage.page); }}
             disabled={isLoading || actionAlertId !== null}
           >
             {isLoading ? "Refreshing…" : "Refresh alerts"}
           </button>
         </div>
       </div>
+
+      <HeaderTools><form className="collection-search" role="search" aria-label="Alert search" onSubmit={event => { event.preventDefault(); const next = searchInput.trim(); if (next === keyword) loadAlerts(0); else setKeyword(next); }}>
+        <label htmlFor="alert-name-search">Search alerts by system name</label>
+        <div><input id="alert-name-search" type="search" placeholder="Enter part of a system name" value={searchInput} disabled={actionAlertId !== null} onChange={event => setSearchInput(event.target.value)} />
+          <button type="submit" className="button-secondary" disabled={actionAlertId !== null}>Search alerts</button>
+          {(keyword || searchInput) && <button type="button" className="button-secondary" disabled={actionAlertId !== null} onClick={() => { setSearchInput(""); setKeyword(""); }}>Clear search</button>}</div>
+        {keyword && <p className="section-copy">Showing names containing “{keyword}” across all alerts matching the selected filters.</p>}
+      </form></HeaderTools>
 
       {!canManageAlerts && (
         <p className="permission-note">
@@ -223,8 +262,7 @@ function AlertCenter({ currentUser, onSessionExpired, onAlertsChanged, systems =
 
       {!isLoading && !error && alertPage.items.length === 0 && (
         <p className="empty-state" role="status">
-          No {statusFilter === "ALL" ? "" : formatLabel(statusFilter).toLowerCase() + " "}
-          alerts are available.
+          {keyword ? `No alerts match “${keyword}” with the selected filters.` : `No ${statusFilter === "ALL" ? "" : formatLabel(statusFilter).toLowerCase() + " "}alerts are available.`}
         </p>
       )}
 
@@ -237,17 +275,21 @@ function AlertCenter({ currentUser, onSessionExpired, onAlertsChanged, systems =
               </caption>
               <thead>
                 <tr>
-                  <th scope="col">System</th>
+                  <th scope="col" aria-sort={sort.field === "systemName" ? sort.direction === "asc" ? "ascending" : "descending" : "none"}>
+                    <button type="button" className="sort-column" disabled={actionAlertId !== null} onClick={() => toggleSort("systemName")} title={sort.field === "systemName" && sort.direction === "desc" ? "Clear system name sorting" : "Sort by system name"}>System <span aria-hidden="true">{sort.field === "systemName" ? sort.direction === "asc" ? "↑" : "↓" : ""}</span></button>
+                  </th>
                   <th scope="col">Alert</th>
                   <th scope="col">Severity</th>
                   <th scope="col">Status</th>
-                  <th scope="col">Created</th>
+                  <th scope="col" aria-sort={sort.field === "createdTime" ? sort.direction === "asc" ? "ascending" : "descending" : "none"}>
+                    <button type="button" className="sort-column" disabled={actionAlertId !== null} onClick={() => toggleSort("createdTime")} title={sort.field === "createdTime" && sort.direction === "desc" ? "Clear alert time sorting" : "Sort by alert creation time"}>Alert time <span aria-hidden="true">{sort.field === "createdTime" ? sort.direction === "asc" ? "↑" : "↓" : ""}</span></button>
+                  </th>
                   {canManageAlerts && <th scope="col">Actions</th>}
                 </tr>
               </thead>
               <tbody>
                 {alertPage.items.map((alert) => {
-                  const actionInProgress = actionAlertId !== null;
+                  const actionInProgress = actionAlertId !== null || Boolean(pendingResolution);
                   return (
                     <tr key={alert.alertId}>
                       <td>{alert.systemName}</td>
@@ -268,6 +310,7 @@ function AlertCenter({ currentUser, onSessionExpired, onAlertsChanged, systems =
                         >
                           {formatLabel(alert.status)}
                         </span>
+                        {pendingResolution?.alert.alertId === alert.alertId && <span className="cell-detail">{pendingResolution.sending ? "Saving resolution…" : "Resolution scheduled · Undo available"}</span>}
                       </td>
                       <td>{new Date(alert.createdTime).toLocaleString()}</td>
                       {canManageAlerts && (
@@ -287,7 +330,7 @@ function AlertCenter({ currentUser, onSessionExpired, onAlertsChanged, systems =
                               <button
                                 className="button-small"
                                 type="button"
-                                onClick={() => updateAlert(alert, "resolve")}
+                                onClick={() => onResolveRequested ? onResolveRequested(alert) : updateAlert(alert, "resolve")}
                                 disabled={actionInProgress}
                               >
                                 Resolve

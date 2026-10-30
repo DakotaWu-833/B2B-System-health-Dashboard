@@ -9,6 +9,7 @@ export default function Profile({ onSessionExpired }) {
   const [feedback, setFeedback] = useState("");
   const [busy, setBusy] = useState(false);
   const [resendAt, setResendAt] = useState(0);
+  const [expiresAt, setExpiresAt] = useState(0);
   const [now, setNow] = useState(Date.now());
   const pending = useRef(false);
   useEffect(() => {
@@ -22,10 +23,14 @@ export default function Profile({ onSessionExpired }) {
     return () => controller.abort();
   }, [onSessionExpired]);
   useEffect(() => {
-    if (resendAt <= Date.now()) return;
-    const timer = setInterval(() => setNow(Date.now()), 1000);
+    const finishAt = Math.max(resendAt, expiresAt);
+    if (finishAt <= Date.now()) return;
+    const timer = setInterval(() => {
+      const current = Date.now(); setNow(current);
+      if (current >= finishAt) clearInterval(timer);
+    }, 1000);
     return () => clearInterval(timer);
-  }, [resendAt]);
+  }, [resendAt, expiresAt]);
   async function action(kind, event) {
     event?.preventDefault();
     if (pending.current) return;
@@ -33,18 +38,24 @@ export default function Profile({ onSessionExpired }) {
     try {
       if (kind === "save") {
         const data = await apiMutation("/api/profile", "PUT", { email: email.trim() });
-        setProfile(data); setEmail(data.email || ""); setCode(""); setResendAt(0);
-        setFeedback("Email address saved. Verify it to confirm ownership.");
+        setProfile(data); setEmail(data.email || ""); setCode(""); setExpiresAt(0);
+        setFeedback(data.emailVerified ? "Email address saved. Its verification is still valid." : "Email address saved. Verify it to confirm ownership.");
       } else if (kind === "send") {
         const data = await apiMutation("/api/profile/email-verification", "POST");
         setResendAt(new Date(data.resendAt).getTime()); setNow(Date.now()); setCode("");
+        setExpiresAt(Date.parse(data.expiresAt) || 0);
         setFeedback("Verification email sent. Check your inbox for the six-digit code.");
       } else {
         const data = await apiMutation("/api/profile/email-verification/confirm", "POST", { code });
-        setProfile(data); setCode(""); setFeedback("Email verified successfully.");
+        setProfile(data); setCode(""); setExpiresAt(0); setFeedback("Email verified successfully.");
       }
     } catch (failure) {
-      if (failure.status === 401) onSessionExpired?.(); else setError(failure.message);
+      if (failure.status === 401) onSessionExpired?.(); else {
+        if (failure.status === 429 && failure.retryAfter > 0) {
+          const current = Date.now(); setResendAt(current + failure.retryAfter * 1000); setNow(current);
+        }
+        setError(failure.message);
+      }
     } finally { pending.current = false; setBusy(false); }
   }
   const seconds = Math.max(0, Math.ceil((resendAt - now) / 1000));
@@ -64,6 +75,8 @@ export default function Profile({ onSessionExpired }) {
         <button disabled={busy || email.trim().toLowerCase() === profile.email}>Save email address</button>
       </form>
       {profile.email && !profile.emailVerified && <div className="verification-panel">
+        {expiresAt > 0 && <p className="section-copy">{now >= expiresAt ? "This verification code has expired. Request a new code." : <>
+          Verification code expires at <time dateTime={new Date(expiresAt).toISOString()}>{new Date(expiresAt).toLocaleString()}</time>.</>}</p>}
         <button type="button" disabled={busy || seconds > 0} onClick={() => action("send")}>{seconds > 0 ? `Resend in ${seconds}s` : "Send verification code"}</button>
         <form className="editor-form" onSubmit={event => action("confirm", event)}>
           <label>Verification code<input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" minLength={6} maxLength={6}

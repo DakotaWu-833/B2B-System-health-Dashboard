@@ -258,8 +258,8 @@ function Dashboard({ currentUser, onSessionExpired }) {
                         <th>Type</th>
                         <th>Host</th>
                         <th>Status</th>
-                        <th>CPU</th><th>Memory</th><th>Response time</th><th>Metric data</th><th>Last measured</th>
-                        {canManageSystems && <th>Actions</th>}
+                        <th>CPU</th><th>Memory</th><th>Response time</th><th className="system-measurement-time">Last measured</th>
+                        {canManageSystems && <th className="system-actions">Actions</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -289,10 +289,8 @@ function Dashboard({ currentUser, onSessionExpired }) {
                           <td>{formatMetric(system.latestMetric?.cpuUsage, "%")}</td>
                           <td>{formatMetric(system.latestMetric?.memoryUsage, "%")}</td>
                           <td>{formatMetric(system.latestMetric?.responseTime, " ms")}</td>
-                          <td><span className="data-badge">{system.metricDataStatus ?? "NO_DATA"}</span>
-                            {system.latestMetric?.availability === false && <span className="cell-detail">Unavailable</span>}</td>
-                          <td>{formatTime(system.lastUpdated)}</td>
-                          {canManageSystems && <td><button type="button" className="button-secondary button-small"
+                          <td className="system-measurement-time">{formatTime(system.lastUpdated)}</td>
+                          {canManageSystems && <td className="system-actions"><button type="button" className="button-secondary button-small"
                             aria-label={`Edit ${system.name}`} disabled={Boolean(form)} onClick={(event) => {
                               event.stopPropagation(); setFeedback(""); setForm({ system });
                             }}>Edit</button></td>}

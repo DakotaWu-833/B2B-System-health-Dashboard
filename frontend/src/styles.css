@@ -171,10 +171,10 @@ textarea:focus-visible { outline: 3px solid #7a9dea; outline-offset: 3px; }
 .systems-panel th:nth-child(5) { width: 75px; }
 .systems-panel th:nth-child(6) { width: 85px; }
 .systems-panel th:nth-child(7) { width: 120px; }
-.systems-panel th:nth-child(8) { width: 110px; }
-.systems-panel th:nth-child(9) { width: 160px; }
-.systems-panel th:nth-child(10) { width: 85px; }
-.systems-panel td:first-child, .systems-panel td:nth-child(3), .systems-panel td:nth-child(9) { white-space: normal; overflow-wrap: anywhere; }
+.systems-panel th.system-measurement-time { width: 170px; }
+.systems-panel th.system-actions { width: 85px; }
+.systems-panel td:first-child, .systems-panel td:nth-child(3), .systems-panel td.system-measurement-time { white-space: normal; overflow-wrap: anywhere; }
+.systems-panel td.system-measurement-time { font-variant-numeric: tabular-nums; }
 @media (max-width: 1050px) {
   .dashboard-main-grid { grid-template-columns: 1fr; }
   .health-chart .chart-legend { grid-template-columns: repeat(2, minmax(0, 1fr)); }

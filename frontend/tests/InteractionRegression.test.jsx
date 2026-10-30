@@ -42,7 +42,7 @@ test("regression: a late refresh response must not overwrite the selected filter
   let completeOldRefresh;
   let activeCalls = 0;
   vi.spyOn(globalThis, "fetch").mockImplementation(url => {
-    if (url.includes("status=ACTIVE") && ++activeCalls === 2) {
+    if (!url.includes("status=") && ++activeCalls === 2) {
       return new Promise(resolve => { completeOldRefresh = resolve; });
     }
     return Promise.resolve(response(page(url.includes("status=RESOLVED") ? [{ ...alert, status: "RESOLVED", systemName: "Resolved API" }] : [alert], {
@@ -89,7 +89,7 @@ test("a stale response body cannot replace a newer filter after JSON parsing", a
   let finishOldJson;
   let activeCalls = 0;
   vi.spyOn(globalThis, "fetch").mockImplementation(url => {
-    if (url.includes("status=ACTIVE") && ++activeCalls === 2) return Promise.resolve({
+    if (!url.includes("status=") && ++activeCalls === 2) return Promise.resolve({
       ok: true, status: 200, json: () => new Promise(resolve => { finishOldJson = resolve; }),
     });
     return Promise.resolve(response(page(url.includes("status=RESOLVED") ?
@@ -111,13 +111,13 @@ test("superseded 401 responses do not expire a newer successful session", async 
   let activeCalls = 0;
   const onSessionExpired = vi.fn();
   vi.spyOn(globalThis, "fetch").mockImplementation(url => {
-    if (url.includes("status=ACTIVE") && ++activeCalls === 2) return new Promise(resolve => { completeOld = resolve; });
+    if (!url.includes("status=") && ++activeCalls === 2) return new Promise(resolve => { completeOld = resolve; });
     return Promise.resolve(response(page([alert], { totalPages: 1, last: true })));
   });
   render(<AlertCenter currentUser={{ role: "MANAGEMENT" }} onSessionExpired={onSessionExpired} />);
   await screen.findByText("Last-page API");
   fireEvent.click(screen.getByRole("button", { name: "Refresh alerts" }));
-  fireEvent.change(screen.getByLabelText("Status"), { target: { value: "ALL" } });
+  fireEvent.change(screen.getByLabelText("Status"), { target: { value: "ACTIVE" } });
   await screen.findByText("Last-page API");
   await act(async () => completeOld({ ok: false, status: 401 }));
   expect(onSessionExpired).not.toHaveBeenCalled();

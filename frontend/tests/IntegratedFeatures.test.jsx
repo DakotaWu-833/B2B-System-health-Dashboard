@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import Dashboard from "../src/Dashboard";
+import SystemsPage from "../src/SystemsPage";
+import App from "../src/App";
 import SystemForm from "../src/SystemForm";
 import Profile from "../src/Profile";
 import SystemDetails from "../src/SystemDetails";
@@ -16,12 +18,12 @@ const emptyAlerts = paged([], { size: 5 });
 test("paged systems retain real zeros, missing metrics and management read-only access", async () => {
   const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(url => Promise.resolve(reply(
     url === "/api/dashboard/summary" ? summary : url.startsWith("/api/systems/page") ? paged([system]) : emptyAlerts)));
-  render(<Dashboard currentUser={{ role: "MANAGEMENT" }} />);
+  render(<><Dashboard /><SystemsPage currentUser={{ role: "MANAGEMENT" }} /></>);
   const row = await screen.findByRole("button", { name: /Integrated API.*SERVICE/ });
   expect(within(row).getAllByText("No data")).toHaveLength(3);
   expect(within(row).getByText("No measurement")).toBeInTheDocument();
-  expect(screen.getByRole("heading", { name: "Average CPU" }).parentElement).toHaveTextContent("0%");
-  expect(screen.getByRole("heading", { name: "Average memory" }).parentElement).toHaveTextContent("No data");
+  expect(screen.getByRole("heading", { name: "Average CPU" }).closest("article")).toHaveTextContent("0%");
+  expect(screen.getByRole("heading", { name: "Average memory" }).closest("article")).toHaveTextContent("No data");
   expect(screen.queryByRole("button", { name: "Add system" })).not.toBeInTheDocument();
   expect(fetch.mock.calls.some(([url]) => url === "/api/systems")).toBe(false);
 });
@@ -30,27 +32,34 @@ test("system page navigation requests only the next bounded page", async () => {
   const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(url => Promise.resolve(reply(
     url === "/api/dashboard/summary" ? summary : url.startsWith("/api/systems/page?page=1") ? paged([{ ...system, id: 2, name: "Second page API" }], { page: 1, first: false, totalPages: 2, totalElements: 11 }) :
     url.startsWith("/api/systems/page") ? paged([system], { last: false, totalPages: 2, totalElements: 11 }) : emptyAlerts)));
-  render(<Dashboard currentUser={{ role: "MANAGEMENT" }} />);
-  fireEvent.click(await screen.findByRole("button", { name: "Next systems" }));
+  render(<SystemsPage currentUser={{ role: "MANAGEMENT" }} />);
+  fireEvent.click(await screen.findByRole("button", { name: "Next page" }));
   expect(await screen.findByRole("button", { name: /Second page API.*SERVICE/ })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /Integrated API.*SERVICE/ })).not.toBeInTheDocument();
-  expect(fetch).toHaveBeenCalledWith("/api/systems/page?page=1&size=10", expect.objectContaining({ credentials: "include" }));
+  expect(fetch).toHaveBeenCalledWith("/api/systems/page?page=1&size=12", expect.objectContaining({ credentials: "include" }));
 });
 
-test("successful alert mutation refreshes the summary without losing the alert success message", async () => {
+test("successful alert mutation preserves feedback and the overview loads the current summary", async () => {
   let resolved = false;
   const alert = { alertId: 1, systemName: "Alert API", alertType: "HIGH_CPU", status: "ACTIVE", severity: "WARNING", message: "CPU warning", createdTime: "2026-10-18T00:00:00Z" };
   vi.spyOn(globalThis, "fetch").mockImplementation((url, options = {}) => {
+    if (url === "/api/auth/me") return Promise.resolve(reply({ username: "integrated.ops", role: "OPERATIONS" }));
+    if (url === "/api/health") return Promise.resolve(reply({ status: "UP" }));
     if (url === "/api/dashboard/summary") return Promise.resolve(reply({ ...summary, activeAlertCount: resolved ? 0 : 1 }));
     if (url.startsWith("/api/systems/page")) return Promise.resolve(reply(paged([system])));
     if (url === "/api/auth/csrf") return Promise.resolve(reply({ token: "test", headerName: "X-CSRF-TOKEN" }));
     if (options.method === "PATCH") { resolved = true; return Promise.resolve(reply({ ...alert, status: "RESOLVED" })); }
     return Promise.resolve(reply(resolved ? emptyAlerts : paged([alert], { size: 5 })));
   });
-  render(<Dashboard currentUser={{ role: "OPERATIONS" }} />);
-  fireEvent.click(await screen.findByRole("button", { name: "Resolve" }));
-  expect(await screen.findByText(/alert resolved successfully/)).toBeInTheDocument();
-  await waitFor(() => expect(screen.getByRole("heading", { name: "Active alerts" }).parentElement).toHaveTextContent("0"));
+  render(<App />);
+  fireEvent.click(await screen.findByRole("link", { name: "Alert Center" }));
+  await waitFor(() => expect(window.location.hash).toBe("#alerts"));
+  fireEvent.click(await screen.findByRole("button", { name: "Acknowledge" }));
+  expect(await screen.findByText(/alert acknowledged successfully/)).toBeInTheDocument();
+  expect(screen.getByLabelText("Status")).toHaveValue("ALL");
+  fireEvent.click(screen.getByRole("link", { name: "Dashboard" }));
+  await waitFor(() => expect(window.location.hash).toBe("#dashboard"));
+  await waitFor(() => expect(screen.getByRole("heading", { name: "Active alerts" }).closest("article")).toHaveTextContent("0"));
 });
 
 test("system form preserves input on 409 and uses a fresh CSRF token", async () => {
@@ -113,9 +122,31 @@ test("detail uses returned thresholds and follows the server history cursor", as
   vi.spyOn(globalThis, "fetch").mockImplementation(url => Promise.resolve(reply(url === "/api/systems/1" ? details :
     { items: [{ metricId: url.includes("cursor") ? 2 : 1, timestamp: "2026-10-18T00:00:00Z", cpuUsage: url.includes("cursor") ? 30 : 20, memoryUsage: 10, responseTime: 100, availability: true }], nextCursor: url.includes("cursor") ? null : "opaque-cursor", hasMore: !url.includes("cursor") })));
   render(<SystemDetails system={system} />);
-  expect(await screen.findByRole("row", { name: "CPU 70% 90%" })).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Load older readings" }));
+  expect(await screen.findByText("CPU: Warning ≥ 70%; Critical ≥ 90%.")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("tab", { name: "Recent Metrics" }));
+  expect(await screen.findByText("20%")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Next page" }));
   expect(await screen.findByText("30%")).toBeInTheDocument();
-  expect(screen.getByText("20%")).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Load older readings" })).not.toBeInTheDocument();
+  expect(screen.queryByText("20%")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Next page" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Previous page" }));
+  expect(await screen.findByText("20%")).toBeInTheDocument();
+});
+
+
+test("profile can recover from a network failure by retrying its initial load", async () => {
+  const fetch = vi.spyOn(globalThis, "fetch")
+    .mockRejectedValueOnce(new TypeError("Network offline"))
+    .mockResolvedValueOnce(reply({ username: "recovered.ops", role: "OPERATIONS", email: "recovered@example.test", emailVerified: true }));
+  render(<Profile />);
+  expect(await screen.findByRole("alert")).toHaveTextContent("Unable to load your profile. Check your connection and try again.");
+  expect(screen.queryByLabelText("Email address")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Retry profile" }));
+  expect(await screen.findByRole("heading", { name: "recovered.ops" })).toBeInTheDocument();
+  expect(screen.getByLabelText("Email address")).toHaveValue("recovered@example.test");
+  expect(screen.getByText("Verified")).toBeInTheDocument();
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Retry profile" })).not.toBeInTheDocument();
+  expect(fetch).toHaveBeenCalledTimes(2);
+  expect(fetch).toHaveBeenLastCalledWith("/api/profile", expect.objectContaining({ credentials: "include", signal: expect.any(AbortSignal) }));
 });

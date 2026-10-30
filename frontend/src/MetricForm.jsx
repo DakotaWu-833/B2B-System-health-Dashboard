@@ -1,11 +1,13 @@
 import { useRef, useState } from "react";
 import { apiFetch } from "./api";
+import { useModalGuard } from "./Modal";
 
 export default function MetricForm({ system, onSubmitted, onSessionExpired, showTitle = true }) {
   const [values, setValues] = useState({ cpuUsage: "", memoryUsage: "", responseTime: "", availability: "true" });
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitting = useRef(false);
+  useModalGuard(Boolean(values.cpuUsage || values.memoryUsage || values.responseTime || values.availability !== "true"), isSubmitting);
 
   async function handleSubmit(event) {
     event.preventDefault();

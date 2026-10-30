@@ -3,7 +3,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import AlertCenter from "../src/AlertCenter";
 import Login from "../src/Login";
 import App from "../src/App";
-import Dashboard from "../src/Dashboard";
+import SystemsPage from "../src/SystemsPage";
 import SystemDetails from "../src/SystemDetails";
 import { MetricTrend } from "../src/Charts";
 
@@ -56,12 +56,12 @@ describe("Authentication and session boundaries", () => {
 });
 
 describe("Alert permissions and error handling", () => {
-  test("starts with ACTIVE filter and disables both boundaries on a single page", async () => {
+  test("starts with ALL filter and disables both boundaries on a single page", async () => {
     const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(response(page([alert])));
     render(<AlertCenter currentUser={operations} />);
     await screen.findByText("Test API");
-    expect(screen.getByLabelText("Status")).toHaveValue("ACTIVE");
-    expect(fetch.mock.calls[0][0]).toContain("status=ACTIVE");
+    expect(screen.getByLabelText("Status")).toHaveValue("ALL");
+    expect(fetch.mock.calls[0][0]).toBe("/api/alerts?page=0&size=5");
     expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
   });
@@ -132,15 +132,19 @@ describe("Alert permissions and error handling", () => {
 });
 
 describe("Data display and accessible navigation", () => {
-  test("system rows can be selected using the keyboard", async () => {
+  test("system cards are native focusable controls that open details", async () => {
     const system = { id: 2, name: "Keyboard API", type: "SERVICE", host: "keyboard.test", status: "HEALTHY" };
     const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(url => Promise.resolve(response(
       url === "/api/dashboard/summary" ? { total: 1, healthy: 1, warning: 0, critical: 0, offline: 0 } :
       url.startsWith("/api/systems/page") ? page([system]) : url.includes("/metrics/history?") ? { items: [] } : { ...system, metricDataStatus: "NO_DATA", statusReasons: ["No metric data is available"] }
     )));
-    render(<Dashboard />);
-    fireEvent.keyDown(await screen.findByRole("button", { name: /Keyboard API/ }), { key: "Enter" });
-    expect(await screen.findByText("No metric data is available")).toBeInTheDocument();
+    render(<SystemsPage />);
+    const card = await screen.findByRole("button", { name: /Keyboard API/ });
+    expect(card.tagName).toBe("BUTTON");
+    card.focus();
+    expect(card).toHaveFocus();
+    fireEvent.click(card);
+    expect(await screen.findByText(/No measurements are available/)).toBeInTheDocument();
     expect(fetch).toHaveBeenCalledWith("/api/systems/2", expect.anything());
   });
   test("detail metrics retain health reasons, raw records and both trend charts", async () => {
@@ -149,7 +153,8 @@ describe("Data display and accessible navigation", () => {
       [{ metricId: 1, timestamp: "2026-10-18T00:00:00Z", cpuUsage: 80, memoryUsage: 70, responseTime: 600, availability: true }] :
       { ...system, metricDataStatus: "STALE", statusReasons: ["Latest metric data is stale"] })));
     render(<SystemDetails system={system} />);
-    expect(await screen.findByText("Latest metric data is stale")).toBeInTheDocument();
+    expect(await screen.findByText(/latest reading is outside the current update window/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Recent Metrics" }));
     expect(await screen.findByRole("img", { name: /Resource usage/ })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: /Response time/ })).toBeInTheDocument();
     expect(screen.getByText("80%")).toBeInTheDocument();
@@ -161,17 +166,21 @@ describe("Data display and accessible navigation", () => {
     expect(screen.getByText("No recorded metrics to chart yet.")).toBeInTheDocument();
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
   });
-  test("top navigation targets existing sections without replacing the Alert Centre", async () => {
+  test("primary navigation opens alert filters and returns to the dashboard", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(url => Promise.resolve(response(
       url === "/api/auth/me" ? { username: "qa.manager", role: "MANAGEMENT" } :
       url === "/api/health" ? { status: "UP", service: "test", timestamp: "2026-10-18T00:00:00Z" } :
-      url === "/api/dashboard/summary" ? { total: 0, healthy: 0, warning: 0, critical: 0, offline: 0 } :
-      url.startsWith("/api/systems/page") ? page([]) : page([]))));
+      url === "/api/dashboard/summary" ? { total: 0, healthy: 0, warning: 0, critical: 0, offline: 0 } : page([]))));
     render(<App />);
-    const link = await screen.findByRole("link", { name: "Alert Centre" });
-    await screen.findByRole("heading", { name: "Alert Centre" });
-    expect(document.querySelector(link.getAttribute("href"))).toBeInTheDocument();
-    expect(document.querySelector(screen.getByRole("link", { name: "Dashboard" }).getAttribute("href"))).toBeInTheDocument();
-    expect(screen.getByLabelText("Status")).toHaveValue("ACTIVE");
+    fireEvent.click(await screen.findByRole("link", { name: "Alert Center" }));
+  await waitFor(() => expect(window.location.hash).toBe("#alerts"));
+    expect(await screen.findByRole("heading", { name: "Alert Center", level: 2 })).toBeInTheDocument();
+    expect(screen.getByLabelText("Status")).toHaveValue("ALL");
+    expect(screen.getByRole("link", { name: "Alert Center" })).toHaveAttribute("aria-current", "page");
+    fireEvent.click(screen.getByRole("link", { name: "Dashboard" }));
+  await waitFor(() => expect(window.location.hash).toBe("#dashboard"));
+    expect(await screen.findByRole("heading", { name: "Overview" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Status")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Metric retention" })).not.toBeInTheDocument();
   });
 });

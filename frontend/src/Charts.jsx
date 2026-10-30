@@ -3,8 +3,8 @@ import { useId } from "react";
 const healthGroups = [
   ["healthy", "Healthy", "var(--healthy)"],
   ["warning", "Warning", "var(--warning)"],
-  ["critical", "Critical", "#cf4254"],
-  ["offline", "Offline", "#778397"],
+  ["critical", "Critical", "var(--critical)"],
+  ["offline", "Offline", "var(--offline)"],
 ];
 
 export function HealthDistribution({ summary }) {
@@ -19,7 +19,7 @@ export function HealthDistribution({ summary }) {
       {total === 0 ? <p className="empty-state">No system data to chart yet.</p> : (
         <div className="health-chart-body">
           <svg viewBox="0 0 160 160" role="img" aria-label={`${total} systems by health status`}>
-            <circle cx="80" cy="80" r="58" fill="none" stroke="#e9eef4" strokeWidth="18" />
+            <circle cx="80" cy="80" r="58" fill="none" stroke="var(--chart-track)" strokeWidth="18" />
             {healthGroups.map(([key, label, color]) => {
               const percent = (Number(summary[key]) || 0) / total * 100;
               const start = offset;

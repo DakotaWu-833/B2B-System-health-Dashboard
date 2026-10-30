@@ -1,7 +1,8 @@
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import App from "../src/App";
-import Dashboard from "../src/Dashboard";
+import SystemsPage from "../src/SystemsPage";
+import AlertsPage from "../src/AlertsPage";
 import SystemForm from "../src/SystemForm";
 
 afterEach(() => vi.restoreAllMocks());
@@ -46,9 +47,11 @@ test("editing preserves the existing description and sends PUT for the selected 
     body: expect.stringContaining('"description":"Existing context"') }));
 });
 
-test("a manual reading refreshes paged systems, KPI and alerts while preserving both alert filters", async () => {
+test("a manual reading refreshes system cards and subsequent overview and filtered alert views", async () => {
   let submitted = false;
   const fetch = vi.spyOn(globalThis, "fetch").mockImplementation((url, options = {}) => {
+    if (url === "/api/auth/me") return Promise.resolve(reply({ username: "review.ops", role: "OPERATIONS" }));
+    if (url === "/api/health") return Promise.resolve(reply({ status: "UP" }));
     if (url === "/api/auth/csrf") return Promise.resolve(reply({ token: "fresh" }));
     if (options.method === "POST") { submitted = true; return Promise.resolve(reply(reading, 201)); }
     if (url === "/api/dashboard/summary") return Promise.resolve(reply(submitted ? { ...summary, activeAlertCount: 1, averageCpuUsage: 90 } : summary));
@@ -60,18 +63,28 @@ test("a manual reading refreshes paged systems, KPI and alerts while preserving 
       severity: "CRITICAL", status: "ACTIVE", message: "CPU warning", createdTime: reading.timestamp }] : [])));
     throw new Error(`Unexpected request: ${url}`);
   });
-  render(<Dashboard currentUser={{ role: "OPERATIONS" }} />);
+  render(<App />);
+  fireEvent.click(await screen.findByRole("link", { name: "System" }));
+  await waitFor(() => expect(window.location.hash).toBe("#system"));
   fireEvent.click(await screen.findByRole("button", { name: /Review API SERVICE/ }));
-  fireEvent.change(screen.getByLabelText("Status"), { target: { value: "ALL" } });
-  fireEvent.change(screen.getByLabelText("System"), { target: { value: "1" } });
+  await screen.findByText("Health thresholds:");
+  fireEvent.click(screen.getByRole("tab", { name: "Submit a metric reading" }));
   for (const [label, value] of [["CPU usage (%)", "90"], ["Memory usage (%)", "10"], ["Response time (ms)", "100"]]) {
     fireEvent.change(await screen.findByLabelText(label), { target: { value } });
   }
   fireEvent.click(screen.getByRole("button", { name: "Submit reading" }));
+  await screen.findByText("Metric reading 1 submitted successfully.");
+  fireEvent.click(screen.getByRole("button", { name: "Close system dialog" }));
+  expect(await screen.findByRole("button", { name: /Review API SERVICE.*CRITICAL/ })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("link", { name: "Dashboard" }));
+  await waitFor(() => expect(window.location.hash).toBe("#dashboard"));
+  await waitFor(() => expect(screen.getByRole("heading", { name: "Average CPU" }).closest("article")).toHaveTextContent("90%"));
+  expect(screen.getByRole("heading", { name: "Active alerts" }).closest("article")).toHaveTextContent("1");
+  fireEvent.click(screen.getByRole("link", { name: "Alert Center" }));
+  await waitFor(() => expect(window.location.hash).toBe("#alerts"));
   await screen.findByText("CPU warning");
-  await waitFor(() => expect(screen.getByRole("heading", { name: "Average CPU" }).parentElement).toHaveTextContent("90%"));
-  expect(screen.getByRole("heading", { name: "Active alerts" }).parentElement).toHaveTextContent("1");
-  expect(screen.getByLabelText("System")).toHaveValue("1");
+  fireEvent.change(screen.getByRole("combobox", { name: "System" }), { target: { value: "1" } });
+  await waitFor(() => expect(screen.getByRole("combobox", { name: "System" })).toHaveValue("1"));
   expect(screen.getByLabelText("Status")).toHaveValue("ALL");
   expect(fetch.mock.calls.filter(([, options]) => options.method === "POST")).toHaveLength(1);
   expect(fetch.mock.calls.some(([url]) => url === "/api/alerts?page=0&size=5&systemId=1")).toBe(true);
@@ -81,24 +94,26 @@ test("Management can inspect details but cannot see system or metric write contr
   vi.spyOn(globalThis, "fetch").mockImplementation(url => Promise.resolve(reply(url === "/api/dashboard/summary" ? summary :
     url.startsWith("/api/systems/page") ? page([system]) : url.includes("/metrics/history?") ? { items: [] } :
     url === "/api/systems/1" ? { ...system, statusReasons: [] } : page([]))));
-  render(<Dashboard currentUser={{ role: "MANAGEMENT" }} />);
+  render(<SystemsPage currentUser={{ role: "MANAGEMENT" }} />);
   fireEvent.click(await screen.findByRole("button", { name: /Review API SERVICE/ }));
-  await screen.findByText("Current health thresholds");
+  await screen.findByText("Health thresholds:");
   expect(screen.queryByRole("button", { name: "Add system" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Edit Review API" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Submit reading" })).not.toBeInTheDocument();
+  expect(screen.getByRole("tab", { name: "Submit a metric reading" })).toBeDisabled();
 });
 
-test("the alert system filter can load systems outside the visible table page with a bounded request", async () => {
-  const other = { ...system, id: 11, name: "Other page API" };
-  const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(url => Promise.resolve(reply(url === "/api/dashboard/summary" ? { ...summary, total: 11 } :
-    url.includes("size=100") ? page([system, other], { size: 100, totalElements: 11 }) :
-    url.startsWith("/api/systems/page") ? page([system], { totalPages: 2, totalElements: 11, last: false }) : page([]))));
-  render(<Dashboard currentUser={{ role: "MANAGEMENT" }} />);
+test("the alert system filter loads additional systems with bounded requests", async () => {
+  const other = { ...system, id: 101, name: "Other page API" };
+  const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(url => Promise.resolve(reply(
+    url.startsWith("/api/systems/page?page=1") ? page([other], { page: 1, size: 100, first: false, totalPages: 2, totalElements: 101 }) :
+    url.startsWith("/api/systems/page") ? page([system], { size: 100, totalPages: 2, totalElements: 101, last: false }) : page([]))));
+  render(<AlertsPage currentUser={{ role: "MANAGEMENT" }} />);
   fireEvent.click(await screen.findByRole("button", { name: "Load more filter systems" }));
   await screen.findByRole("option", { name: "Other page API" });
-  fireEvent.change(screen.getByLabelText("System"), { target: { value: "11" } });
-  await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/alerts?page=0&size=5&status=ACTIVE&systemId=11", expect.anything()));
+  fireEvent.change(screen.getByRole("combobox", { name: "System" }), { target: { value: "101" } });
+  await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/alerts?page=0&size=5&systemId=101", expect.anything()));
+  expect(fetch).toHaveBeenCalledWith("/api/systems/page?page=1&size=100", expect.anything());
   expect(screen.queryByRole("button", { name: /Other page API SERVICE/ })).not.toBeInTheDocument();
   expect(fetch.mock.calls.some(([url]) => url === "/api/systems")).toBe(false);
 });
@@ -116,10 +131,11 @@ test("profile navigation retains visible logout failure and allows a successful 
   });
   render(<App />);
   fireEvent.click(await screen.findByRole("link", { name: "My profile" }));
-  await screen.findByRole("heading", { name: "My profile" });
+  await waitFor(() => expect(window.location.hash).toBe("#profile"));
+  await screen.findByRole("heading", { name: "My profile", level: 2 });
   fireEvent.click(screen.getByRole("button", { name: "Logout" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("Unable to log out");
-  expect(screen.getByRole("heading", { name: "My profile" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "My profile", level: 2 })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Logout" }));
   expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
   expect(logoutAttempts).toBe(2);

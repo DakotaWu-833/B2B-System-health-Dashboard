@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import Dashboard from "../src/Dashboard";
+import SystemsPage from "../src/SystemsPage";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -61,7 +62,7 @@ describe("Dashboard", () => {
         }),
       });
 
-    render(<Dashboard />);
+    render(<><Dashboard /><SystemsPage /></>);
 
     expect(
       screen.getByText("Loading dashboard data...")
@@ -87,7 +88,7 @@ describe("Dashboard", () => {
     );
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      "/api/systems/page?page=0&size=10",
+      "/api/systems/page?page=0&size=12",
       expect.objectContaining({ credentials: "include" })
     );
   });
@@ -105,46 +106,18 @@ describe("Dashboard", () => {
       total: 1,
       healthy: 1,
     };
-    const refreshedSystems = [{
-      id: 3,
-      name: "Inventory API",
-      type: "API",
-      host: "inventory.example.com",
-      status: "HEALTHY",
-    }];
-
     vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: emptySummary }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: [] }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: refreshedSummary }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: refreshedSystems }),
-      });
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true, data: emptySummary }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true, data: refreshedSummary }) });
 
     render(<Dashboard />);
-
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "No monitored systems are available yet."
-    );
-    expect(screen.queryByRole("table")).not.toBeInTheDocument();
-
-    fireEvent.click(
-      screen.getByRole("button", { name: "Refresh dashboard" })
-    );
-
-    expect(await screen.findByText("Inventory API")).toBeInTheDocument();
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    expect(globalThis.fetch).toHaveBeenCalledTimes(4);
+    const total = await screen.findByRole("heading", { name: "Total Systems" });
+    expect(total.closest("article")).toHaveTextContent("0");
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Refresh dashboard" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Total Systems" }).closest("article")).toHaveTextContent("1"));
+    expect(screen.getByRole("heading", { name: "Healthy" }).closest("article")).toHaveTextContent("1");
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
   });
 
   test("shows an error when dashboard API request fails", async () => {

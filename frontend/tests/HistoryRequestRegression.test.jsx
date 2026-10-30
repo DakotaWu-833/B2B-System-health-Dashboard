@@ -15,6 +15,7 @@ test("a slow initial history response must not replace a later filtered result",
     return new Promise(resolve => { finishInitial = resolve; });
   });
   render(<SystemDetails system={system} />);
+  fireEvent.click(await screen.findByRole("tab", { name: "Recent Metrics" }));
   fireEvent.change(await screen.findByLabelText("History from"), { target: { value: "2026-10-17T00:00" } });
   fireEvent.click(screen.getByRole("button", { name: "Apply history range" }));
   await screen.findByText("42%");

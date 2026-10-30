@@ -120,7 +120,7 @@ describe("AlertCenter", () => {
       })
     );
     expect(
-      screen.getByText("No active alerts are available.")
+      screen.getByText("No alerts are available.")
     ).toBeInTheDocument();
   });
 
@@ -196,7 +196,7 @@ describe("AlertCenter", () => {
 
     expect(await screen.findByText("Order Database")).toBeInTheDocument();
     expect(globalThis.fetch).toHaveBeenLastCalledWith(
-      "/api/alerts?page=1&size=5&status=ACTIVE",
+      "/api/alerts?page=1&size=5",
       expect.objectContaining({ credentials: "include" })
     );
     expect(screen.getByText(/Page 2 of 2/)).toBeInTheDocument();

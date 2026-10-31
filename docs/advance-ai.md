@@ -41,8 +41,9 @@ Investigate a system and Runbook library views.
 - At most six model-selected calls by default (configurable 1–12), plus one
   initial system observation and up to two final synthesis/formatting requests. Each model
   request has a configurable timeout, a 1 MiB response limit and an output
-  token cap. The loop has a 90-second budget checked between calls; an in-flight
-  retrieval can finish after that deadline by up to its own timeout. Unknown
+  token cap. The loop has a shared 90-second budget, including retrieval calls.
+  Q&A shares one budget across embedding and generation, capped at 45 seconds
+  (or `AI_TIMEOUT` when shorter). Cache processing also checks the deadline. Unknown
   tools and invalid arguments produce rejected-tool observations.
 - An alert suggestion is only a draft. At most three drafts per run are saved
   after a source-referenced final report. Confirmation requires Operations,
@@ -96,13 +97,26 @@ Use a distinct `REDIS_NAMESPACE` for independent installations. Models may be
 changed without altering application code; select a chat model that supports
 Ollama tool calling. Only the configured endpoint receives the selected context.
 
+Keep running native services on a copied, immutable release JAR outside Maven's
+build directory. Rebuilding a JAR in place while a JVM uses it can break lazy
+class loading. Frontend and backend must use matching versions. In the local
+verification environment, `5176` connects to the AI backend on `8086`; the
+separate `5173`/`8080` preview is the original course version.
+
+The assistant shows elapsed waiting time and a **Cancel request** button. Q&A
+stops waiting after 55 seconds and investigation after 110 seconds, including
+CSRF and transport time. The question remains editable after timeout or cancel.
+Cancellation closes the browser request; any server-side read/proposal analysis
+already running may finish. Alert mutation still requires separate confirmation.
+
 ## Failure behavior
 
 | Condition | Result |
 | --- | --- |
 | AI disabled (default) | BM25 excerpts and read-only system observations; no generated answer or proposals |
 | Embedding model unavailable | BM25 fallback, explicitly labelled in `retrievalMode` |
-| Chat model unavailable or timed out | `model_unavailable`, original evidence only |
+| Chat model unavailable | `model_unavailable`, original evidence only |
+| Shared model deadline reached | `model_timeout`, original evidence only; no further generation |
 | No matching sources | `insufficient_evidence`; no invented answer |
 | Invalid references | `unverified_answer`; generated text suppressed |
 | Source changed while generating | `sources_changed`; original source text suppressed |

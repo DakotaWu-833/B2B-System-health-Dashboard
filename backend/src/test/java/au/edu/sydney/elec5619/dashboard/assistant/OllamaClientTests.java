@@ -46,7 +46,7 @@ class OllamaClientTests {
         try {
             long start = System.nanoTime();
             assertThatThrownBy(() -> client(server, new ObjectMapper(), true).chat(List.of(), List.of(), false, Duration.ofMillis(150)))
-                    .isInstanceOf(OllamaClient.ModelUnavailableException.class);
+                    .isInstanceOf(OllamaClient.ModelTimeoutException.class);
             assertThat(Duration.ofNanos(System.nanoTime() - start)).isLessThan(Duration.ofSeconds(1));
         } finally { server.stop(0); }
     }

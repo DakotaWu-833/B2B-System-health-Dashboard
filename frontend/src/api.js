@@ -28,9 +28,10 @@ export async function apiJson(path, options = {}) {
   return result.data;
 }
 
-export async function apiMutation(path, method, body) {
-  const csrf = await apiJson("/api/auth/csrf");
+export async function apiMutation(path, method, body, options = {}) {
+  const csrf = await apiJson("/api/auth/csrf", { signal: options.signal });
   return apiJson(path, {
+    ...options,
     method,
     headers: { "Content-Type": "application/json", [csrf.headerName || "X-CSRF-TOKEN"]: csrf.token },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),

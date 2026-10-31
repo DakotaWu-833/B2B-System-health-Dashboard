@@ -59,9 +59,9 @@ public class AgentService {
         String summary = null;
         Instant deadline = Instant.now().plusSeconds(90);
         if (!properties.enabled()) {
-            execute("query_metrics", mapper.createObjectNode(), systemId, auth, question, trace, citations, drafts, observedAlerts);
-            execute("list_alerts", mapper.createObjectNode(), systemId, auth, question, trace, citations, drafts, observedAlerts);
-            execute("search_runbooks", mapper.createObjectNode().put("query", question), systemId, auth, question, trace, citations, drafts, observedAlerts);
+            execute("query_metrics", mapper.createObjectNode(), systemId, auth, question, trace, citations, drafts, observedAlerts, deadline);
+            execute("list_alerts", mapper.createObjectNode(), systemId, auth, question, trace, citations, drafts, observedAlerts, deadline);
+            execute("search_runbooks", mapper.createObjectNode().put("query", question), systemId, auth, question, trace, citations, drafts, observedAlerts, deadline);
         } else {
             try {
                 int calls = 0;
@@ -86,7 +86,7 @@ public class AgentService {
                         String name = call.path("function").path("name").asText();
                         JsonNode args = call.path("function").path("arguments");
                         JsonNode output;
-                        try { output = execute(name, args, systemId, auth, question, trace, citations, drafts, observedAlerts); }
+                        try { output = execute(name, args, systemId, auth, question, trace, citations, drafts, observedAlerts, deadline); }
                         catch (RuntimeException invalid) {
                             // Never reflect exception internals or model-supplied content into the next prompt.
                             output = mapper.valueToTree(Map.of("error", "Tool rejected: invalid arguments, permissions or current state"));
@@ -102,7 +102,8 @@ public class AgentService {
                         break;
                     }
                 }
-            } catch (OllamaClient.ModelUnavailableException unavailable) { status = "model_unavailable"; }
+            } catch (OllamaClient.ModelTimeoutException timedOut) { status = "model_timeout"; }
+            catch (OllamaClient.ModelUnavailableException unavailable) { status = "model_unavailable"; }
         }
         citations = citations.stream().distinct().toList();
         List<ProposalService.Proposal> pending = new ArrayList<>();
@@ -123,7 +124,7 @@ public class AgentService {
     }
     private JsonNode execute(String name, JsonNode args, Long systemId, Authentication auth, String question,
                              List<Trace> trace, List<KnowledgeService.Citation> citations, List<Draft> drafts,
-                             Map<Long, AlertResponse> observedAlerts) {
+                             Map<Long, AlertResponse> observedAlerts, Instant deadline) {
         long start = System.nanoTime();
         if (!args.isObject()) throw new IllegalArgumentException();
         Object value = switch (name) {
@@ -136,7 +137,7 @@ public class AgentService {
             case "search_runbooks" -> {
                 String query = args.path("query").asText(question);
                 if (query.isBlank() || query.length() > 2000) throw new IllegalArgumentException();
-                var result = retrieval.search(query, systemId, auth); citations.addAll(result.citations()); yield result;
+                var result = retrieval.search(query, systemId, auth, deadline); citations.addAll(result.citations()); yield result;
             }
             case "propose_alert_action" -> {
                 if (!KnowledgeService.operations(auth) || drafts.size() >= 3) throw new IllegalArgumentException();

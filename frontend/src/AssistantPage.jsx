@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { apiJson, apiMutation } from "./api";
 import Icon from "./Icons";
 import RunbookLibrary from "./RunbookLibrary";
+import { assistantRequest } from "./assistantRequest";
 
 const statusText = {
   insufficient_evidence: "There is not enough relevant evidence to answer. Add a runbook or try a more specific question.",
   retrieval_only: "Relevant source excerpts are ready. Model responses are currently turned off.",
   model_disabled: "The current observations are ready. Model analysis is currently turned off.",
   model_unavailable: "The model could not finish. You can still review the evidence below.",
+  model_timeout: "The model reached its time limit. Review the available evidence, or try a more specific question.",
   unverified_answer: "The response did not include valid evidence references. Review the original observations below.",
   sources_changed: "A source changed during this request. Run the request again for current evidence.",
   budget_exhausted: "The investigation reached its limit. Review the observations or ask a more focused question.",
@@ -30,12 +32,21 @@ export default function AssistantPage({ currentUser, onSessionExpired, onAlertsC
   const [confirmed, setConfirmed] = useState({});
   const [retryAt, setRetryAt] = useState(0);
   const [now, setNow] = useState(Date.now());
+  const [elapsed, setElapsed] = useState(0);
+  const [waiting, setWaiting] = useState(false);
+  const activeRequest = useRef(null);
   const pending = useRef(false);
   const mounted = useRef(false);
   const version = useRef(0);
   const operations = currentUser?.role === "OPERATIONS";
 
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; ++version.current; }; }, []);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; ++version.current; activeRequest.current?.cancel(); }; }, []);
+  useEffect(() => {
+    if (!waiting) return;
+    const start = Date.now();
+    const timer = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000);
+    return () => clearInterval(timer);
+  }, [waiting]);
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true); setError("");
@@ -59,17 +70,29 @@ export default function AssistantPage({ currentUser, onSessionExpired, onAlertsC
     event.preventDefault();
     if (pending.current || !question.trim() || (tab === "diagnose" && !systemId)) return;
     pending.current = true; setBusy(true); setError(""); setResult(null); setReview(null); setConfirmed({});
+    setWaiting(true); setElapsed(0);
     const request = ++version.current;
+    const job = assistantRequest(signal => apiMutation(`/api/assistant/${tab}`, "POST", {
+      question: question.trim(), systemId: systemId ? Number(systemId) : null,
+    }, { signal }), tab === "ask" ? 55000 : 110000);
+    activeRequest.current = job;
     try {
-      const data = await apiMutation(`/api/assistant/${tab}`, "POST", { question: question.trim(), systemId: systemId ? Number(systemId) : null });
+      const data = await job.promise;
       if (mounted.current && request === version.current) setResult(data);
     } catch (failure) {
       if (!mounted.current || request !== version.current) return;
-      if (failure.status === 401) onSessionExpired?.(); else {
+      if (failure.name === "TimeoutError") setError("The request timed out. Your question is saved; try a more specific question or check the service connection.");
+      else if (failure.name === "AbortError") setError("Request cancelled. You can edit your question and try again.");
+      else if (failure.status === 401) onSessionExpired?.(); else {
         setError(failure.message);
         if (failure.retryAfter) { setRetryAt(Date.now() + failure.retryAfter * 1000); setNow(Date.now()); }
       }
-    } finally { pending.current = false; if (mounted.current) setBusy(false); }
+    } finally {
+      if (activeRequest.current === job) {
+        activeRequest.current = null; pending.current = false;
+        if (mounted.current) { setBusy(false); setWaiting(false); }
+      }
+    }
   }
   async function confirm() {
     if (!review || pending.current) return;
@@ -103,6 +126,7 @@ export default function AssistantPage({ currentUser, onSessionExpired, onAlertsC
             <label>Your question<textarea rows={5} maxLength={2000} required value={question} disabled={busy} onChange={event => { setQuestion(event.target.value); setResult(null); setReview(null); }} placeholder={tab === "ask" ? "How should we investigate a high memory alert?" : "What do the latest metrics and alerts tell us?"} /></label>
             <p className="section-copy">{tab === "ask" ? "Answers use the runbooks available to your role, with source excerpts you can review." : "The assistant reads current observations and suggests next steps. Alert changes require your confirmation."}</p>
             <button disabled={busy || loading || wait > 0 || !question.trim() || (tab === "diagnose" && !systemId)}>{busy ? "Gathering evidence…" : wait > 0 ? `Try again in ${wait}s` : tab === "ask" ? "Search runbooks" : "Investigate system"}<Icon name="arrow" /></button>
+            {waiting && <div className="assistant-pagination"><span role="status">Waiting for a response · {elapsed}s</span><button type="button" className="button-secondary button-small" onClick={() => activeRequest.current?.cancel()}>Cancel request</button></div>}
           </form>
         </div>
         <aside className="assistant-note"><Icon name="shield" /><div><strong>Evidence comes first</strong><p>Check data freshness and cited sources before acting. A suggested cause still needs verification.</p></div></aside>

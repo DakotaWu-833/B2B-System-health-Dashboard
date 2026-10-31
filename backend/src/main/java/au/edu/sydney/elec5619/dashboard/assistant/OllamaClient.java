@@ -43,7 +43,8 @@ public class OllamaClient {
         return result;
     }
     private JsonNode post(String path, Object body, Duration budget) {
-        if (!properties.enabled() || budget.isNegative() || budget.isZero()) throw new ModelUnavailableException();
+        if (!properties.enabled()) throw new ModelUnavailableException();
+        if (budget.isNegative() || budget.isZero()) throw new ModelTimeoutException();
         try {
             Duration timeout = budget.compareTo(properties.timeout()) < 0 ? budget : properties.timeout();
             HttpRequest request = HttpRequest.newBuilder(properties.baseUrl().resolve(path)).timeout(timeout)
@@ -54,6 +55,10 @@ public class OllamaClient {
                 if (response.statusCode() != 200) throw new ModelUnavailableException();
                 return mapper.readTree(response.body());
             } finally { if (!pending.isDone()) pending.cancel(true); }
+        } catch (TimeoutException timedOut) { throw new ModelTimeoutException(); }
+        catch (ExecutionException failed) {
+            if (failed.getCause() instanceof HttpTimeoutException) throw new ModelTimeoutException();
+            throw new ModelUnavailableException();
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt(); throw new ModelUnavailableException();
         } catch (Exception failed) { throw new ModelUnavailableException(); }
@@ -75,4 +80,5 @@ public class OllamaClient {
     public static class ModelUnavailableException extends RuntimeException {
         public ModelUnavailableException() { super("Model unavailable or response invalid"); }
     }
+    public static class ModelTimeoutException extends ModelUnavailableException {}
 }

@@ -84,3 +84,39 @@ suite and remote CI were not run in this session. The workflow now targets
 `advance` and includes a Redis service; its remote outcome must be checked
 separately. This work does not establish public deployment, load capacity,
 large-corpus retrieval quality or proven incident root causes.
+
+## Follow-up: hanging request fix
+
+The shared frontend source also appeared at the older `5173` preview, which was
+still connected to the original `8080` backend. A build had overwritten that
+running JVM's JAR, causing lazy class-loading errors on unsupported AI routes.
+The browser had no whole-operation timeout, so it could remain on “Gathering
+evidence” while waiting for that failed connection.
+
+The original backend was rebuilt from the unchanged `27a84e6` source into a
+separate directory and restored with its existing database and credentials.
+Login returned 200 and the unsupported AI endpoint returned 404 in 0.03 seconds.
+The AI preview uses `5176`/`8086`, and now runs from a copied immutable release
+outside the Maven build directory. The affected Chrome tab was switched to that
+preview and signed in.
+
+The assistant now includes elapsed waiting time and cancellation. Its 55-second
+Q&A and 110-second investigation browser deadlines include CSRF and transport
+time. A never-resolving transport releases the UI at the deadline; cancellation
+allows retry, retains the question and ignores old responses. Leaving the page
+aborts its browser request. Backend Q&A shares one capped 45-second deadline
+across retrieval and generation; Agent retrieval shares its existing 90-second
+budget. Deadline exhaustion returns evidence without starting another model call.
+
+Follow-up checks: 83 frontend tests passed, 15 affected backend tests passed,
+frontend production build and executable backend package passed. These include
+stalled-body HTTP timeout, expired retrieval budget, transport that never settles,
+cancel/retry, stale response suppression and CSRF/mutation signal propagation.
+Through the real `5176` proxy, the original question “how can we improve
+efficiency” returned `insufficient_evidence` in 1.53 seconds; a question supported
+by the CPU runbook returned `generated_with_sources` in 3.66 seconds. The question
+“what the latest alert is” completed an investigation in 4.28 seconds using
+`get_system` and `list_alerts`. These are individual local observations, not
+performance guarantees. The original question was also retried in the actual
+Chrome page, which displayed the evidence-insufficiency result and enabled the
+form again.

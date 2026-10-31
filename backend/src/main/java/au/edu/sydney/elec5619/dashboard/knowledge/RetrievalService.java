@@ -28,6 +28,9 @@ public class RetrievalService {
         this.chunks = chunks; this.ai = ai; this.model = model; this.redis = redis; this.mapper = mapper;
     }
     public Result search(String query, Long systemId, Authentication auth) {
+        return search(query, systemId, auth, Instant.now().plus(ai.timeout()));
+    }
+    public Result search(String query, Long systemId, Authentication auth, Instant requestDeadline) {
         List<KnowledgeChunk> corpus = chunks.corpus(KnowledgeService.operations(auth), systemId, PageRequest.of(0, 1001));
         if (corpus.size() > 1000) throw new ApiProblemException(HttpStatus.UNPROCESSABLE_ENTITY,
                 "Knowledge scope exceeds 1000 chunks. Select a system or reduce the corpus.");
@@ -56,7 +59,8 @@ public class RetrievalService {
         String mode = "bm25";
         if (ai.enabled() && !ai.embeddingModel().isBlank() && corpus.size() <= 256) {
             try {
-                Instant deadline = Instant.now().plus(ai.timeout());
+                Instant perCallDeadline = Instant.now().plus(ai.timeout());
+                Instant deadline = requestDeadline.isBefore(perCallDeadline) ? requestDeadline : perCallDeadline;
                 List<String> texts = new ArrayList<>(List.of(query));
                 corpus.forEach(c -> texts.add(c.document.title + "\n" + c.text));
                 List<double[]> vectors = embeddings(texts, deadline);
@@ -80,6 +84,7 @@ public class RetrievalService {
         List<double[]> result = new ArrayList<>(Collections.nCopies(texts.size(), null));
         List<Integer> missing = new ArrayList<>();
         for (int i = 0; i < texts.size(); i++) {
+            if (!Instant.now().isBefore(deadline)) throw new OllamaClient.ModelTimeoutException();
             var raw = redis.get(embeddingKey(texts.get(i)));
             if (raw.isPresent()) {
                 try {
@@ -90,11 +95,12 @@ public class RetrievalService {
             if (result.get(i) == null) missing.add(i);
         }
         for (int start = 0; start < missing.size(); start += 32) {
+            if (!Instant.now().isBefore(deadline)) throw new OllamaClient.ModelTimeoutException();
             List<Integer> positions = missing.subList(start, Math.min(missing.size(), start + 32));
             List<double[]> values = model.embed(positions.stream().map(texts::get).toList(), Duration.between(Instant.now(), deadline));
             for (int i = 0; i < positions.size(); i++) {
                 int position = positions.get(i); result.set(position, values.get(i));
-                redis.put(embeddingKey(texts.get(position)), mapper.writeValueAsString(values.get(i)), Duration.ofDays(7));
+                if (Instant.now().isBefore(deadline)) redis.put(embeddingKey(texts.get(position)), mapper.writeValueAsString(values.get(i)), Duration.ofDays(7));
             }
         }
         return result;

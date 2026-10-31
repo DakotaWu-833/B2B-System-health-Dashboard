@@ -1,5 +1,8 @@
 # B2B System Health Dashboard
 
+The `advance` branch adds Redis-backed middleware, versioned runbook RAG and an
+operations investigation agent. See [setup, API and failure behavior](docs/advance-ai.md).
+
 ## 1 Project Overview
 
 The **B2B System Health Dashboard** is a full-stack web application designed to help small and medium-sized organisations monitor the health of their servers and software services through a centralised dashboard.

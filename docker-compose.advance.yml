@@ -1,0 +1,33 @@
+# Combine with docker-compose.ui.yml. Redis stays on the private Compose network.
+services:
+  redis:
+    image: redis:8.2
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --maxmemory 256mb --maxmemory-policy noeviction --save '' --appendonly no"]
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$REDIS_PASSWORD redis-cli ping | grep -q PONG"]
+      interval: 3s
+      timeout: 2s
+      retries: 20
+  ollama:
+    image: ollama/ollama:0.40.3
+    environment:
+      OLLAMA_NO_CLOUD: "1"
+    volumes:
+      - advance-ollama:/root/.ollama
+  backend:
+    environment:
+      REDIS_ENABLED: "true"
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
+      AI_ENABLED: ${AI_ENABLED:-false}
+      AI_BASE_URL: ${AI_BASE_URL:-http://ollama:11434}
+      AI_MODEL: ${AI_MODEL:-qwen3.5:9b-q4_K_M}
+      AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-qwen3-embedding:0.6b}
+      AI_TIMEOUT: ${AI_TIMEOUT:-PT30S}
+    depends_on:
+      redis:
+        condition: service_healthy
+volumes:
+  advance-ollama:

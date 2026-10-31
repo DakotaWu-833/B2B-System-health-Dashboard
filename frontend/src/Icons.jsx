@@ -1,4 +1,5 @@
 const paths = {
+  assistant: "M12 3v3 M4 9h16v11H4z M1 12h3 M20 12h3 M8 13h.01 M16 13h.01 M8 17h8",
   dashboard: "M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z",
   system: "M3 3h18v7H3z M3 14h18v7H3z M7 6h1 M7 17h1 M12 6h5 M12 17h5",
   alerts: "M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9 M10 21h4",

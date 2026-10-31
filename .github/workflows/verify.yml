@@ -1,9 +1,9 @@
 name: Verify application and real database workflows
 on:
   pull_request:
-    branches: [develop-3, main]
+    branches: [advance, develop-3, main]
   push:
-    branches: [develop-3]
+    branches: [advance, develop-3]
   workflow_dispatch:
 permissions:
   contents: read
@@ -11,6 +11,11 @@ jobs:
   verify:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    services:
+      redis:
+        image: redis:8.2
+        ports: ["6386:6379"]
+        options: --health-cmd "redis-cli ping" --health-interval 3s --health-timeout 2s --health-retries 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -28,6 +33,9 @@ jobs:
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
       - run: bash scripts/verify.sh
+      - name: Verify shared Redis counters and cache
+        working-directory: backend
+        run: sh mvnw -B test -Dtest=RedisRuntimeIT -Dredis.it=true -Dredis.port=6386
       - uses: actions/upload-artifact@v4
         if: always()
         with:

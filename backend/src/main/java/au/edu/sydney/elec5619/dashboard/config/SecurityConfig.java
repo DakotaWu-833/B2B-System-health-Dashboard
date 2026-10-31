@@ -55,6 +55,10 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(HttpMethod.POST, "/api/knowledge/documents", "/api/assistant/proposals/*/confirm").hasRole("OPERATIONS")
+                        .requestMatchers(HttpMethod.PUT, "/api/knowledge/documents/*").hasRole("OPERATIONS")
+                        .requestMatchers(HttpMethod.DELETE, "/api/knowledge/documents/*").hasRole("OPERATIONS")
+                        .requestMatchers("/api/assistant/**", "/api/knowledge/**").hasAnyRole("OPERATIONS", "MANAGEMENT")
                         .requestMatchers("/api/admin/**").hasRole("OPERATIONS")
                         .requestMatchers(HttpMethod.POST, "/api/systems").hasRole("OPERATIONS")
                         .requestMatchers(HttpMethod.PUT, "/api/systems/*").hasRole("OPERATIONS")

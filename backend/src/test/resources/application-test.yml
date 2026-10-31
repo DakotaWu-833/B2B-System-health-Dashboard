@@ -9,3 +9,7 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
+app:
+  rate-limit:
+    login-per-minute: 10000
+    ai-per-minute: 10000

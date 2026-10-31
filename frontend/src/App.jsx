@@ -11,8 +11,9 @@ import useDeferredResolve from "./useDeferredResolve";
 import { apiFetch } from "./api";
 import { HeaderToolsProvider } from "./HeaderTools";
 import Icon from "./Icons";
+import AssistantPage from "./AssistantPage";
 
-const pageNames = { dashboard: "Dashboard", system: "System", alerts: "Alert Center", profile: "My profile", retention: "Metric retention" };
+const pageNames = { dashboard: "Dashboard", system: "System", alerts: "Alert Center", assistant: "Operations assistant", profile: "My profile", retention: "Metric retention" };
 function routeFromHash() { const hash = window.location.hash.slice(1); return ({ "alert-center-title": "alerts", "metric-retention": "retention" })[hash] || (pageNames[hash] ? hash : "dashboard"); }
 
 function App() {
@@ -157,6 +158,7 @@ function App() {
         {view === "alerts" && <AlertsPage currentUser={currentUser} onSessionExpired={handleSessionExpired} refreshVersion={alertVersion}
           onAlertsChanged={()=>setAlertVersion(version=>version+1)} onResolveRequested={resolution.schedule} pendingResolution={resolution.pending} />}
         {view === "profile" && <Profile onSessionExpired={handleSessionExpired} />}
+        {view === "assistant" && <AssistantPage currentUser={currentUser} onSessionExpired={handleSessionExpired} onAlertsChanged={() => setAlertVersion(value => value + 1)} />}
         {view === "retention" && <MetricRetention currentUser={currentUser} onSessionExpired={handleSessionExpired} />}
       </main></HeaderToolsProvider>
     </div>

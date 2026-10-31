@@ -1,6 +1,15 @@
 spring:
   application:
     name: system-health-dashboard-backend
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 500ms
+      connect-timeout: 500ms
+      repositories:
+        enabled: false
   jackson:
     deserialization:
       accept-float-as-int: false
@@ -40,6 +49,19 @@ server:
         secure: ${SESSION_COOKIE_SECURE:false}
 
 app:
+  redis:
+    enabled: ${REDIS_ENABLED:false}
+    namespace: ${REDIS_NAMESPACE:dashboard:v1:}
+  rate-limit:
+    ai-per-minute: ${AI_REQUESTS_PER_MINUTE:20}
+    login-per-minute: ${LOGIN_REQUESTS_PER_MINUTE:10}
+  ai:
+    enabled: ${AI_ENABLED:false}
+    base-url: ${AI_BASE_URL:http://127.0.0.1:11434}
+    model: ${AI_MODEL:qwen3.5:9b-q4_K_M}
+    embedding-model: ${AI_EMBEDDING_MODEL:}
+    timeout: ${AI_TIMEOUT:PT30S}
+    max-tool-calls: ${AI_MAX_TOOL_CALLS:6}
   email:
     enabled: ${EMAIL_ENABLED:false}
     from: ${EMAIL_FROM:no-reply@dashboard.local}

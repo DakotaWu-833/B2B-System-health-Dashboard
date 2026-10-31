@@ -1,0 +1,86 @@
+# Advance verification — 31 October 2026 (Australia/Sydney)
+
+Base: `advance` at `27a84e653350fc12a34f7af4b45ca60c516006cf` (same base as
+`develop-3`). All feature changes were made on `advance`; no integration branch
+was merged. Pre-existing untracked `output/` files were excluded.
+
+## Local automated checks
+
+| Check | Result |
+| --- | --- |
+| Java 21 backend suite, H2 Flyway V1–V6, real Redis test | 175 tests passed, no failures/errors/skips |
+| Follow-up after final formatting and route handling changes | All 11 assistant/security integration tests passed again, including plain-text-to-JSON synthesis recovery and encoded-route limiting |
+| React/Vitest | 79 tests passed across 15 files |
+| Frontend production build | Passed |
+| Executable backend package | Passed using a separate build directory |
+| Live MySQL startup | MySQL 8.4.11 migrated V1–V6 and Hibernate schema validation passed |
+| Real Redis | Redis 8.10.3 Windows MSYS2 port; cache TTL, namespace isolation and 60 concurrent increments across two service instances passed |
+
+Backend tests cover role/CSRF restrictions, private documents, Chinese retrieval,
+system filtering, updates/deletion, stale versions, hybrid retrieval and cached
+embeddings, model failures, unknown references/tools, tool budget, ownership,
+expired proposals, changed sources/alerts, idempotent confirmation and response
+body timeouts. Frontend tests include the two-step confirmation flow, session
+expiry, model outage evidence, Management read-only access and edit conflicts.
+
+The full automated command was `scripts/verify-advance.ps1 -TestRedis -RedisPort
+6386`, with Java 21 configured. The follow-up assistant test ran after the final
+formatting change; no unrelated production code changed after the live run.
+
+## Real model and database workflow
+
+An independent local environment used backend `8086`, UI `5176`, MySQL `13316`,
+Redis `6386` and Ollama `11436`. Models were the existing local
+`qwen3.5:9b-q4_K_M` and `qwen3-embedding:0.6b`. It used a separate database,
+generated credentials and explicitly synthetic monitored systems/runbooks.
+
+All **17 live workflow checks** passed:
+
+- Anonymous access and missing CSRF were rejected; private sources were hidden
+  from Management. Responses included request IDs and `private, no-store`.
+- A submitted CPU metric created a real alert, and an imported runbook was
+  stored and indexed in MySQL.
+- The embedding endpoint provided real hybrid retrieval, and Qwen returned an
+  answer with known source references.
+- Qwen selected `query_metrics`, `list_alerts`, `search_runbooks` and
+  `propose_alert_action`, in addition to the initial `get_system` observation.
+  The bounded loop completed with a source-referenced report.
+- The alert remained ACTIVE after inference. The returned proposal required
+  confirmation; Management was rejected. Two separate Operations sessions
+  confirmed concurrently against MySQL and both received the same committed
+  ACKNOWLEDGED result. The persisted alert matched it.
+
+Additional middleware checks sent 20 Management Q&A requests with no visible
+private evidence; the next request returned **429 + Retry-After**. Real Redis
+contained content/model keyed embedding cache entries. Stopping the isolated
+Redis server caused inference to return **503 + Retry-After**, while the
+read-only runbook library remained available. Redis was restarted afterward.
+
+The reusable loopback test is `scripts/smoke-advance.py`. It writes synthetic
+fixtures and must run against a disposable local database with models enabled:
+
+```sh
+python scripts/smoke-advance.py
+```
+
+Provide `ADVANCE_BASE_URL`, `ADVANCE_OPERATIONS_USERNAME`,
+`ADVANCE_MANAGEMENT_USERNAME`, `ADVANCE_OPERATIONS_PASSWORD` and
+`ADVANCE_MANAGEMENT_PASSWORD` through the environment. Passwords and session
+cookies are not included in its output. It saves a credential-free result at
+`backend/target/advance-smoke.json` by default. It intentionally leaves the
+synthetic fixture in place for review.
+
+## Browser verification and boundaries
+
+The actual local React application was signed into through its login form.
+Runbook Q&A displayed a real Qwen answer, the source title, source version and
+original excerpt. The library loaded persisted content and its current version
+into the editor. The assistant had a two-column layout at 1280 px, and both the
+assistant and library stayed within 320 px without horizontal document overflow.
+The temporary viewport override was reset afterward.
+
+This is local validation. Docker Compose execution, the Docker/Testcontainers
+suite and remote CI were not run in this session. The workflow now targets
+`advance` and includes a Redis service; its remote outcome must be checked
+separately. This work does not establish public deployment, load capacity,
+large-corpus retrieval quality or proven incident root causes.

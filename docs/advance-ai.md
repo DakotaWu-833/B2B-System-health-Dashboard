@@ -5,6 +5,53 @@ versioned runbook retrieval and a bounded model-directed investigation agent.
 The React navigation includes **Operations assistant** with Runbook Q&A,
 Investigate a system and Runbook library views.
 
+## Ask AI from any workspace page
+
+Every signed-in business page now has an **Ask AI** launcher at the lower right.
+It opens a compact conversation on the right without leaving the page. Dashboard,
+systems, alerts, profile, retention and the knowledge workspace each provide
+their own preset questions **above the message input**. Clicking a preset sends
+that question immediately. Presets remain available after a response and change
+with the page or selected alert; they are not an empty-state-only feature.
+
+Alert rows and system cards also have **Ask AI** buttons. They select that
+record, open the conversation and prepare a question. **Clear selection** returns
+to the page/filter context. A selected system/alert also offers an
+**Investigate** button that runs the existing bounded Agent through the same
+conversation and retains the existing review/confirmation step for alert writes.
+
+Normal chat reads current server-side snapshots for the selected page and
+retrieves visible runbooks. It can therefore explain current alert/system data
+and page workflows without requiring a matching runbook for every question.
+Snapshots use `T` references, and versioned runbooks use `D` references. Lists are
+bounded samples: dashboard active alerts up to eight, inventory/alert context up
+to ten, and metric context up to ten readings in the last seven days. Alert
+context carries system/status filters; free-text inventory/alert search and
+client-side sort/page position are not replicated in the snapshot.
+
+Selected-system evidence separates **last reported health**, measurement
+freshness and **current availability**. Missing/outdated readings make current
+availability `UNKNOWN`; a visible notice is shown before the answer. Alert
+workflow status is separate from the historical monitoring event. The model also
+receives the current UTC observation time. Invalid reference formatting may be
+retried once within the same deadline; unknown references are still suppressed.
+
+The server validates page and record IDs, resolves an alert's actual system and
+rejects mismatched selections. It loads account verification booleans without
+sending the email address, password or verification code to the model. Management
+does not receive maintenance-preview data or Operations-only runbooks. Chat itself
+cannot change account details, run archive maintenance or mutate an alert.
+
+Conversations are scoped to page/selection and kept only in browser memory
+(up to 12 scopes, 40 messages each). Closing the panel preserves them; signing
+out clears them. A follow-up sends at most six user/assistant messages, 800
+characters each, further capped to 2,400 characters on the server. This history
+is untrusted discussion, not fresh operational evidence. Changing context cancels
+the old browser request and late responses cannot enter the new conversation.
+The existing 55/110-second limits and cancellation apply to chat/investigation.
+The launcher also mounts inside native system dialogs so it remains operable
+there; Escape closes the conversation before closing the underlying dialog.
+
 ## What is implemented
 
 - Operations can paste or import UTF-8 text/Markdown runbooks, edit and delete
@@ -146,6 +193,7 @@ also require the existing CSRF token obtained from `/api/auth/csrf`.
 | `GET /api/assistant/status` | Model/embedding/Redis configuration and tool budget |
 | `POST /api/assistant/ask` | `{question, systemId?}`; answer status, retrieval mode and citations |
 | `POST /api/assistant/diagnose` | `{question, systemId}`; report, trace, citations and pending proposals |
+| `POST /api/assistant/chat` | `{question, context: {page, systemId?, alertId?, status?}, mode?: "CHAT" or "INVESTIGATE", history?: [{role, content}]}`; cited answer, server observations and optional Agent proposals |
 | `POST /api/assistant/proposals/{id}/confirm` | Operations: empty body; explicit alert change, idempotent per proposal |
 | `GET /api/assistant/runs` | Current user's last 20 investigation metadata records |
 

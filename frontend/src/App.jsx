@@ -12,6 +12,7 @@ import { apiFetch } from "./api";
 import { HeaderToolsProvider } from "./HeaderTools";
 import Icon from "./Icons";
 import AssistantPage from "./AssistantPage";
+import AssistantProvider from "./AssistantContext";
 
 const pageNames = { dashboard: "Dashboard", system: "System", alerts: "Alert Center", assistant: "Operations assistant", profile: "My profile", retention: "Metric retention" };
 function routeFromHash() { const hash = window.location.hash.slice(1); return ({ "alert-center-title": "alerts", "metric-retention": "retention" })[hash] || (pageNames[hash] ? hash : "dashboard"); }
@@ -143,7 +144,7 @@ function App() {
   if (authLoading) return <main className="startup-message" role="status"><span className="brand-symbol" aria-hidden="true"><Icon name="activity" /></span><span className="spinner" aria-hidden="true" /><p>Checking session...</p></main>;
   if (!currentUser) return <Login onLogin={user => { setLogoutError(""); setCurrentUser(user); setView("dashboard"); window.location.hash = "dashboard"; }} />;
 
-  return <div className={`workspace-layout${collapsed ? " is-nav-collapsed" : ""}`}>
+  return <AssistantProvider key={currentUser.username} page={view} currentUser={currentUser} onSessionExpired={handleSessionExpired} onAlertsChanged={() => setAlertVersion(value => value + 1)}><div className={`workspace-layout${collapsed ? " is-nav-collapsed" : ""}`}>
     <a className="skip-link" href="#workspace-main" onClick={event => { event.preventDefault(); document.getElementById("workspace-main")?.focus(); }}>Skip to main content</a>
     <Sidebar view={view} currentUser={currentUser} onNavigate={navigate} onLogout={handleLogout} isLoggingOut={isLoggingOut}
       collapsed={collapsed} onToggleCollapse={() => setCollapsed(value => !value)} mobileOpen={mobileOpen} onCloseMobile={closeMobile} />
@@ -168,6 +169,6 @@ function App() {
         {!resolution.pending.sending&&<button className="button-secondary" onClick={resolution.cancel}>Undo resolve</button>}</>:
         <><p role={resolution.error?"alert":"status"}>{resolution.error||resolution.message}</p><button className="button-secondary button-small" onClick={resolution.dismiss}>Dismiss</button></>}
     </aside>}
-  </div>;
+  </div></AssistantProvider>;
 }
 export default App;

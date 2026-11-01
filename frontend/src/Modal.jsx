@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useAssistant } from "./AssistantContext";
 
 const ModalContext = createContext(null);
 export function useModalNavigation() { return useContext(ModalContext); }
@@ -14,6 +15,7 @@ export function useModalGuard(dirty, busy) {
 }
 
 export default function Modal({ title, onClose, children }) {
+  const assistant = useAssistant();
   const dialog = useRef(null);
   const timer = useRef(null);
   const keepEditing = useRef(null);
@@ -50,6 +52,6 @@ export default function Modal({ title, onClose, children }) {
         {leaving && <div className="modal-discard" role="group" aria-labelledby="discard-title"><h3 id="discard-title">Discard unsaved changes?</h3><p>Your changes have not been saved. Keep editing to finish your work.</p><div className="row-actions"><button ref={keepEditing} type="button" disabled={guard.busy} onClick={keepDraft}>Keep editing</button><button type="button" className="button-secondary" disabled={guard.busy} onClick={() => { if (guard.busy) return; const action = leaving; setLeaving(null); action(); }}>Discard changes</button></div></div>}
         {guard.busy && <p className="modal-working" role="status">Saving your changes. Please keep this window open.</p>}
         {children}
-      </div></div></ModalContext.Provider>
+      </div></div><div className="assistant-modal-host" ref={assistant?.setHost} /></ModalContext.Provider>
   </dialog>, document.body);
 }

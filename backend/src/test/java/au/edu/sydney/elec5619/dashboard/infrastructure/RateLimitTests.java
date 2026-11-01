@@ -26,6 +26,7 @@ class RateLimitTests {
         var first = new RateLimitInterceptor(redis, 1, 10); var second = new RateLimitInterceptor(redis, 1, 10);
         var request = new MockHttpServletRequest("POST", "/api/assistant/ask"); request.setUserPrincipal(() -> "same-user");
         first.preHandle(request, new MockHttpServletResponse(), null);
+        request.setRequestURI("/api/assistant/chat");
         assertThatThrownBy(() -> second.preHandle(request, new MockHttpServletResponse(), null)).hasMessageContaining("Too many");
         when(redis.incrementWindow(anyString(), anyLong())).thenThrow(new IllegalStateException());
         assertThatThrownBy(() -> second.preHandle(request, new MockHttpServletResponse(), null))

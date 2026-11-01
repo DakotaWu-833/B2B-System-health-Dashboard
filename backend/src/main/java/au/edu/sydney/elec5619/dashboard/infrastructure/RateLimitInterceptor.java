@@ -27,7 +27,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
         Object matched = request.getAttribute(org.springframework.web.servlet.HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
         String path = matched == null ? request.getRequestURI() : matched.toString();
         boolean login = path.equals("/api/auth/login");
-        boolean ai = path.equals("/api/assistant/ask") || path.equals("/api/assistant/diagnose");
+        boolean ai = path.equals("/api/assistant/ask") || path.equals("/api/assistant/diagnose") || path.equals("/api/assistant/chat");
         if (!login && !ai) return true;
         String subject = login ? request.getRemoteAddr() : request.getUserPrincipal().getName();
         long epoch = Instant.now().getEpochSecond();

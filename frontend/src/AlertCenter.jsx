@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "./api";
 import { collectionPage, nameIncludes, orderAlerts, readCollection } from "./collectionQuery";
 import HeaderTools from "./HeaderTools";
+import { useAssistant } from "./AssistantContext";
 
 const PAGE_SIZE = 5;
 const STATUS_OPTIONS = ["ALL", "ACTIVE", "ACKNOWLEDGED", "RESOLVED"];
@@ -45,6 +46,10 @@ function AlertCenter({ currentUser, onSessionExpired, onAlertsChanged, systems =
   const updateInProgress = useRef(false);
 
   const canManageAlerts = currentUser?.role === "OPERATIONS";
+  const assistant = useAssistant();
+  const setAssistantScope = assistant?.setScope;
+  const selectedSystemName = systems.find(system => String(system.id) === systemFilter)?.name;
+  useEffect(() => { setAssistantScope?.({ systemId: systemFilter ? Number(systemFilter) : null, systemName: selectedSystemName, status: statusFilter }); }, [setAssistantScope, systemFilter, selectedSystemName, statusFilter]);
 
   const loadAlerts = useCallback(
     async (requestedPage = 0) => {
@@ -296,6 +301,7 @@ function AlertCenter({ currentUser, onSessionExpired, onAlertsChanged, systems =
                       <td>
                         <strong>{formatLabel(alert.alertType)}</strong>
                         <span className="cell-detail">{alert.message}</span>
+                        {assistant && <button type="button" className="ask-ai-inline" aria-label={`Ask AI about ${alert.systemName} alert ${alert.alertId}`} onClick={() => assistant.ask({ systemId: alert.systemId, systemName: alert.systemName, alertId: alert.alertId, status: statusFilter }, "Explain this alert and suggest what to check next.")}>Ask AI <span aria-hidden="true">↗</span></button>}
                       </td>
                       <td>
                         <span

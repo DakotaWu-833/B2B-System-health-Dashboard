@@ -6,6 +6,7 @@ import SystemDetails from "./SystemDetails";
 import SystemForm from "./SystemForm";
 import { collectionPage, nameIncludes, readCollection } from "./collectionQuery";
 import HeaderTools from "./HeaderTools";
+import { useAssistant } from "./AssistantContext";
 
 export default function SystemsPage({ currentUser, onSessionExpired }) {
   const [page, setPage] = useState({ items: [], page: 0, totalPages: 0, totalElements: 0, first: true, last: true });
@@ -19,6 +20,10 @@ export default function SystemsPage({ currentUser, onSessionExpired }) {
   const collection = useRef(null);
   const controller = useRef(null);
   const allowed = currentUser?.role === "OPERATIONS";
+  const assistant = useAssistant();
+  const setAssistantScope = assistant?.setScope;
+  const contextSystem = selected || form?.system;
+  useEffect(() => { setAssistantScope?.(contextSystem ? { systemId: contextSystem.id, systemName: contextSystem.name } : {}); }, [setAssistantScope, contextSystem?.id, contextSystem?.name]);
   const load = useCallback(async (index = 0, background = false) => {
     controller.current?.abort(); const active = new AbortController(); controller.current = active;
     if (!background) setLoading(true); setError("");
@@ -68,7 +73,7 @@ export default function SystemsPage({ currentUser, onSessionExpired }) {
           <div className="card-measured"><span>{formatTime(system.lastUpdated)}</span></div>
           {system.latestMetric?.availability === false && <span className="cell-detail">Unavailable</span>}
         </button>
-        <footer><span>View details <span aria-hidden="true">↗</span></span>{allowed && <button className="button-secondary button-small" aria-label={`Edit ${system.name}`} onClick={() => setForm({ system })}>Edit</button>}</footer>
+        <footer><span>View details <span aria-hidden="true">↗</span></span><div className="row-actions">{assistant && <button type="button" className="ask-ai-inline" aria-label={`Ask AI about ${system.name}`} onClick={() => assistant.ask({ systemId: system.id, systemName: system.name }, "Explain this system's health and suggest what to check next.")}>Ask AI ↗</button>}{allowed && <button className="button-secondary button-small" aria-label={`Edit ${system.name}`} onClick={() => setForm({ system })}>Edit</button>}</div></footer>
       </article>)}</div>
       {page.totalPages > 0 && <nav className="pagination" aria-label="System pages"><button className="button-secondary" disabled={page.first} onClick={() => load(page.page-1)}>Previous page</button>
         <span>Page {page.page+1} of {page.totalPages} · {page.totalElements} systems</span><button className="button-secondary" disabled={page.last} onClick={() => load(page.page+1)}>Next page</button></nav>}

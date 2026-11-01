@@ -120,3 +120,33 @@ by the CPU runbook returned `generated_with_sources` in 3.66 seconds. The questi
 performance guarantees. The original question was also retried in the actual
 Chrome page, which displayed the evidence-insufficiency result and enabled the
 form again.
+
+## 2026-11-02: monitoring consistency and archived conversations
+
+Java 21 backend packaging passed **264 tests**, including
+`*Tests,H2FlywayMigrationIT`, in a separate build directory. Frontend Vitest
+passed **119 tests across 18 files**, and its production build passed.
+Regression coverage includes measured-only health counts, separate No data
+and fresh/stale coverage, fixed summary query count, archived/ordinary context
+and conversation isolation, and restoring page context after Archive/Undo.
+Operational-answer checks cover incorrect counts, false freshness/current
+availability, historical/negative/conditional wording, and suppressing actual
+Agent drafts after an invalid final report.
+
+The copied release was checked against the existing isolated native MySQL,
+Redis and Ollama environment on `8086` (`5176` frontend). In this snapshot:
+
+- Dashboard: 13 systems, 1 measured Healthy, 5 No data, 0 fresh and 8 stale
+  latest readings. Both category totals matched the inventory.
+- Archived chat received 0 archived alerts; ordinary chat received 11 alerts.
+  Both returned source-referenced answers without changing the alerts.
+- Dashboard chat returned the correct Healthy/No data counts and explained
+  that stale/missing readings cannot establish current availability (8.77 s).
+- Agent investigation completed using `get_system` and `list_alerts`, with
+  no proposals (3.97 s).
+- Runbook Q&A returned a hybrid retrieval answer with one validated citation
+  (7.70 s).
+
+These are individual local checks, not load-capacity guarantees. The answer
+guard checks a limited set of common assertions, not every natural-language
+claim. This follow-up did not execute Docker/Testcontainers or remote CI.

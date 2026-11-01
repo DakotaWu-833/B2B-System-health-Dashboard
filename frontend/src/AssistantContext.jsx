@@ -19,7 +19,9 @@ export default function AssistantProvider({ page, currentUser, onSessionExpired,
   const clearSelection = useCallback(() => setSelected(null), []);
   const value = useMemo(() => ({ setScope, ask, setHost }), [setScope, ask, setHost]);
   const selectionActive = selected?.page === page;
-  const scope = { ...(selectionActive ? selected.scope : reported?.page === page ? reported.scope : {}), page };
+  const reportedScope = reported?.page === page ? reported.scope : {};
+  const currentScope = selectionActive ? selected.scope : reportedScope;
+  const scope = { ...currentScope, page, ...(page === "alerts" ? { archived: Boolean(currentScope.archived ?? reportedScope.archived) } : {}) };
   return <AssistantContext.Provider value={value}>
     {children}
     <FloatingAssistant scope={scope} launch={launch} host={host} currentUser={currentUser} selectionActive={selectionActive} onClearSelection={clearSelection}

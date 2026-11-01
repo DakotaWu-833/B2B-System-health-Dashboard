@@ -7,8 +7,8 @@ import { useModalNavigation } from "./Modal";
 
 const tabs = [["basic","Basic information"],["history","Recent Metrics"],["submit","Submit a metric reading"]];
 const SIZE=10;
-export default function SystemDetails({system,currentUser,onSessionExpired,onMetricSubmitted}) {
-  const [tab,setTab]=useState("basic");const [details,setDetails]=useState(null);const [error,setError]=useState("");const [reload,setReload]=useState(0);
+export default function SystemDetails({system,currentUser,onSessionExpired,onMetricSubmitted,initialTab="basic"}) {
+  const [tab,setTab]=useState(initialTab);const [details,setDetails]=useState(null);const [error,setError]=useState("");const [reload,setReload]=useState(0);
   const [pages,setPages]=useState([]);const [index,setIndex]=useState(0);const [historyBusy,setHistoryBusy]=useState(false);const [historyError,setHistoryError]=useState("");
   const [range,setRange]=useState({from:"",to:""});const [feedback,setFeedback]=useState("");const historyController=useRef(null);const tabRefs=useRef([]);
   const allowed=currentUser?.role==="OPERATIONS";
@@ -22,7 +22,7 @@ export default function SystemDetails({system,currentUser,onSessionExpired,onMet
     }catch(failure){if(controller.signal.aborted)return;if(failure.status===401)onSessionExpired?.();else setHistoryError(failure.message||"Unable to load metric history.");}
     finally{if(!controller.signal.aborted)setHistoryBusy(false);}
   }
-  useEffect(()=>{setTab("basic");setFeedback("");setRange({from:"",to:""});},[system?.id]);
+  useEffect(()=>{setTab(initialTab);setFeedback("");setRange({from:"",to:""});},[system?.id,initialTab]);
   useEffect(()=>{
     if(!system){setDetails(null);return;}
     const controller=new AbortController();setDetails(null);setError("");setPages([]);setIndex(0);setRange({from:"",to:""});

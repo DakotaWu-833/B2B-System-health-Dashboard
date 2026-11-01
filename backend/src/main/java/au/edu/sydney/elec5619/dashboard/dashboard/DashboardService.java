@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
+import java.util.EnumMap;
 import java.util.function.Function;
 
 import au.edu.sydney.elec5619.dashboard.alert.AlertRepository;
@@ -39,17 +40,28 @@ public class DashboardService {
     @Transactional(readOnly = true)
     public DashboardSummaryResponse getSummary() {
         Instant evaluatedAt = Instant.now();
-        List<Metric> eligibleMetrics = metricRepository.findLatestForAllSystems().stream()
+        long total = monitoredSystemRepository.count();
+        EnumMap<HealthStatus, Long> measuredHealth = new EnumMap<>(HealthStatus.class);
+        monitoredSystemRepository.countMeasuredSystemsByStatus()
+                .forEach(count -> measuredHealth.put(count.getStatus(), count.getSystemCount()));
+        List<Metric> latestMetrics = metricRepository.findLatestForAllSystems();
+        long freshReadingCount = latestMetrics.stream()
+                .filter(metric -> freshnessPolicy.dataStatus(metric, evaluatedAt) == MetricDataStatus.FRESH)
+                .count();
+        List<Metric> eligibleMetrics = latestMetrics.stream()
                 .filter(Metric::isAvailable)
                 .filter(metric -> freshnessPolicy.dataStatus(metric, evaluatedAt) == MetricDataStatus.FRESH)
                 .toList();
 
         return new DashboardSummaryResponse(
-                monitoredSystemRepository.count(),
-                monitoredSystemRepository.countByStatus(HealthStatus.HEALTHY),
-                monitoredSystemRepository.countByStatus(HealthStatus.WARNING),
-                monitoredSystemRepository.countByStatus(HealthStatus.CRITICAL),
-                monitoredSystemRepository.countByStatus(HealthStatus.OFFLINE),
+                total,
+                measuredHealth.getOrDefault(HealthStatus.HEALTHY, 0L),
+                measuredHealth.getOrDefault(HealthStatus.WARNING, 0L),
+                measuredHealth.getOrDefault(HealthStatus.CRITICAL, 0L),
+                measuredHealth.getOrDefault(HealthStatus.OFFLINE, 0L),
+                total - latestMetrics.size(),
+                freshReadingCount,
+                latestMetrics.size() - freshReadingCount,
                 alertRepository.countByStatus(AlertStatus.ACTIVE),
                 average(eligibleMetrics, Metric::getCpuUsage),
                 average(eligibleMetrics, Metric::getMemoryUsage),

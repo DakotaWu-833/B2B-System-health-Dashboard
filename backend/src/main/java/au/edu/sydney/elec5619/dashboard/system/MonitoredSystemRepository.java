@@ -23,6 +23,19 @@ public interface MonitoredSystemRepository extends JpaRepository<MonitoredSystem
 
     long countByStatus(HealthStatus status);
 
+    interface MeasuredHealthCount {
+        HealthStatus getStatus();
+        long getSystemCount();
+    }
+
+    @Query("""
+            select monitoredSystem.status as status, count(monitoredSystem) as systemCount
+            from MonitoredSystem monitoredSystem
+            where exists (select metric.id from Metric metric where metric.monitoredSystem = monitoredSystem)
+            group by monitoredSystem.status
+            """)
+    List<MeasuredHealthCount> countMeasuredSystemsByStatus();
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select monitoredSystem from MonitoredSystem monitoredSystem where monitoredSystem.id = :systemId")
     Optional<MonitoredSystem> findByIdForUpdate(@Param("systemId") Long systemId);

@@ -10,7 +10,8 @@ public record AlertResponse(
         AlertSeverity severity,
         String message,
         AlertStatus status,
-        Instant createdTime) {
+        Instant createdTime,
+        boolean archived) {
 
     public static AlertResponse from(Alert alert) {
         return new AlertResponse(
@@ -21,6 +22,7 @@ public record AlertResponse(
                 alert.getSeverity(),
                 alert.getMessage(),
                 alert.getStatus(),
-                alert.getCreatedTime());
+                alert.getCreatedTime(),
+                alert.isArchived());
     }
 }

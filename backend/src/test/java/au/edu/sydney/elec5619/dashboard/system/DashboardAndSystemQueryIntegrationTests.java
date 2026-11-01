@@ -116,10 +116,11 @@ class DashboardAndSystemQueryIntegrationTests {
 
     @Test
     void countsEveryHealthStatusInDashboardSummary() throws Exception {
-        createSystem("Healthy API", HealthStatus.HEALTHY);
-        createSystem("Warning API", HealthStatus.WARNING);
-        createSystem("Critical API", HealthStatus.CRITICAL);
-        createSystem("Offline API", HealthStatus.OFFLINE);
+        Instant now = Instant.now();
+        createMetric(createSystem("Healthy API", HealthStatus.HEALTHY), "20", "30", 100L, true, now);
+        createMetric(createSystem("Warning API", HealthStatus.WARNING), "80", "30", 100L, true, now);
+        createMetric(createSystem("Critical API", HealthStatus.CRITICAL), "95", "30", 100L, true, now);
+        createMetric(createSystem("Offline API", HealthStatus.OFFLINE), "20", "30", 100L, false, now);
 
         mockMvc.perform(get("/api/dashboard/summary"))
                 .andExpect(status().isOk())
@@ -127,7 +128,10 @@ class DashboardAndSystemQueryIntegrationTests {
                 .andExpect(jsonPath("$.data.healthy").value(1))
                 .andExpect(jsonPath("$.data.warning").value(1))
                 .andExpect(jsonPath("$.data.critical").value(1))
-                .andExpect(jsonPath("$.data.offline").value(1));
+                .andExpect(jsonPath("$.data.offline").value(1))
+                .andExpect(jsonPath("$.data.noData").value(0))
+                .andExpect(jsonPath("$.data.freshReadingCount").value(4))
+                .andExpect(jsonPath("$.data.staleReadingCount").value(0));
     }
 
     @Test

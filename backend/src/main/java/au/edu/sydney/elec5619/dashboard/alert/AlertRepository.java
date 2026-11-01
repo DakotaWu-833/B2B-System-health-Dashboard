@@ -17,6 +17,18 @@ public interface AlertRepository extends JpaRepository<Alert, Long> {
 
     long countByStatus(AlertStatus status);
 
+    @EntityGraph(attributePaths = "monitoredSystem")
+    @Query("""
+            select alert from Alert alert
+            where alert.archived = :archived
+              and (:status is null or alert.status = :status)
+              and (:systemId is null or alert.monitoredSystem.id = :systemId)
+            """)
+    Page<Alert> findForView(@Param("status") AlertStatus status,
+                           @Param("systemId") Long systemId,
+                           @Param("archived") boolean archived,
+                           Pageable pageable);
+
     List<Alert> findAllByOrderByCreatedTimeDesc();
 
     List<Alert> findByStatusOrderByCreatedTimeDesc(AlertStatus status);

@@ -2,6 +2,8 @@
 
 This extension connects the existing Spring Boot monitoring domain to Redis,
 versioned runbook retrieval and a bounded model-directed investigation agent.
+The [memory profile](ai-memory.md) documents bounded model buffers, single-model
+residency and automatic idle unloading for both native and Compose setups.
 AI questions and investigations use the **Ask AI** conversation available on
 every business page. The navigation has a dedicated **Runbook library** for
 document management; the duplicate Operations assistant page has been removed.
@@ -28,16 +30,25 @@ and page workflows without requiring a matching runbook for every question.
 Snapshots use `T` references, and versioned runbooks use `D` references. Lists are
 bounded samples: dashboard active alerts up to eight, inventory/alert context up
 to ten, and metric context up to ten readings in the last seven days. Alert
-context covers all statuses on the alert board, or a selected alert/system;
+context covers all statuses within the current ordinary or Archived view, or a selected alert/system;
 free-text inventory/alert search and client-side sort/scroll position are not
 replicated in the snapshot.
 
 Selected-system evidence separates **last reported health**, measurement
 freshness and **current availability**. Missing/outdated readings make current
-availability `UNKNOWN`; a visible notice is shown before the answer. Alert
+availability `UNKNOWN`; a visible notice is shown before the answer. Dashboard
+health counts exclude systems without any readings and include a separate
+`noData` count. `freshReadingCount` and `staleReadingCount` describe measurement
+coverage. Stored health for stale systems remains their last reported health,
+and the summary calculation time never establishes measurement freshness. Alert
 workflow status is separate from the historical monitoring event. The model also
 receives the current UTC observation time. Invalid reference formatting may be
 retried once within the same deadline; unknown references are still suppressed.
+The server also supplies structured operational facts and applies a limited
+deterministic check to common English/Chinese count, freshness and current
+availability assertions. Detected contradictions use the same one-retry budget;
+repeated failures suppress the answer and Agent proposals. This check does not
+verify every possible phrasing or establish that a proposed root cause is true.
 
 The server validates page and record IDs, resolves an alert's actual system and
 rejects mismatched selections. It loads account verification booleans without
@@ -45,7 +56,8 @@ sending the email address, password or verification code to the model. Managemen
 does not receive maintenance-preview data or Operations-only runbooks. Chat itself
 cannot change account details, run archive maintenance or mutate an alert.
 
-Conversations are scoped to page/selection and kept only in browser memory
+Conversations are scoped to page/selection, with separate ordinary and Archived
+alert conversations, and kept only in browser memory
 (up to 12 scopes, 40 messages each). Closing the panel preserves them; signing
 out clears them. A follow-up sends at most six user/assistant messages, 800
 characters each, further capped to 2,400 characters on the server. This history
@@ -183,7 +195,7 @@ already running may finish. Alert mutation still requires separate confirmation.
 | Chat model unavailable | `model_unavailable`, original evidence only |
 | Shared model deadline reached | `model_timeout`, original evidence only; no further generation |
 | No matching sources | `insufficient_evidence`; no invented answer |
-| Invalid references | `unverified_answer`; generated text suppressed |
+| Invalid references or detected operational contradiction | `unverified_answer`; generated text and Agent proposals suppressed |
 | Source changed while generating | `sources_changed`; original source text suppressed |
 | Tool budget exhausted | Collected observations and a final synthesis attempt; no automatic alert mutation |
 | Redis cache failure | Retrieval continues without the cache |
@@ -211,7 +223,7 @@ also require the existing CSRF token obtained from `/api/auth/csrf`.
 | `GET /api/assistant/status` | Model/embedding/Redis configuration and tool budget |
 | `POST /api/assistant/ask` | `{question, systemId?}`; answer status, retrieval mode and citations |
 | `POST /api/assistant/diagnose` | `{question, systemId}`; report, trace, citations and pending proposals |
-| `POST /api/assistant/chat` | `{question, context: {page, systemId?, alertId?, status?}, mode?: "CHAT" or "INVESTIGATE", history?: [{role, content}]}`; cited answer, server observations and optional Agent proposals |
+| `POST /api/assistant/chat` | `{question, context: {page, systemId?, alertId?, status?, archived?}, mode?: "CHAT" or "INVESTIGATE", history?: [{role, content}]}`; cited answer, server observations and optional Agent proposals. `archived` is valid only for the alerts page. |
 | `POST /api/assistant/proposals/{id}/confirm` | Operations: empty body; explicit alert change, idempotent per proposal |
 | `GET /api/assistant/runs` | Current user's last 20 investigation metadata records |
 

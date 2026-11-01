@@ -25,6 +25,7 @@ import jakarta.validation.constraints.Size;
         indexes = {
             @Index(name = "idx_alerts_system_status", columnList = "system_id, status"),
             @Index(name = "idx_alerts_created_time", columnList = "created_time"),
+            @Index(name = "idx_alerts_archived_time", columnList = "archived, created_time, alert_id"),
             @Index(name = "idx_alerts_status_time", columnList = "status, created_time, alert_id"),
             @Index(name = "idx_alerts_system_type_status_time", columnList = "system_id, alert_type, status, created_time, alert_id")
         })
@@ -59,6 +60,9 @@ public class Alert {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private AlertStatus status;
+
+    @Column(nullable = false)
+    private boolean archived;
 
     @NotNull
     @Column(name = "created_time", nullable = false)
@@ -108,6 +112,14 @@ public class Alert {
 
     public Instant getCreatedTime() {
         return createdTime;
+    }
+
+    public boolean isArchived() {
+        return archived;
+    }
+
+    void setArchived(boolean archived) {
+        this.archived = archived;
     }
 
     public void changeStatus(AlertStatus status) {

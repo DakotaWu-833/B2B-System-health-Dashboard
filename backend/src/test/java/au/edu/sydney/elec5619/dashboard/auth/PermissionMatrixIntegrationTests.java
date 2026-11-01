@@ -24,14 +24,14 @@ class PermissionMatrixIntegrationTests {
     @Autowired MockMvc mvc;
 
     @ParameterizedTest
-    @ValueSource(strings = {"/api/dashboard/summary", "/api/systems", "/api/alerts"})
+    @ValueSource(strings = {"/api/dashboard/summary", "/api/systems", "/api/alerts", "/api/alerts?archived=true"})
     void managementCanReadSharedSummaries(String path) throws Exception {
         mvc.perform(get(path).with(user("manager").roles("MANAGEMENT")))
                 .andExpect(status().isOk());
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"/api/dashboard/summary", "/api/systems", "/api/alerts",
+    @ValueSource(strings = {"/api/dashboard/summary", "/api/systems", "/api/alerts", "/api/alerts?archived=true",
             "/api/systems/1", "/api/systems/1/metrics", "/api/auth/me"})
     void anonymousCannotReadProtectedData(String path) throws Exception {
         mvc.perform(get(path)).andExpect(status().isUnauthorized());
@@ -39,7 +39,8 @@ class PermissionMatrixIntegrationTests {
 
     @ParameterizedTest
     @CsvSource({"POST,/api/systems", "PUT,/api/systems/1", "POST,/api/systems/1/metrics",
-            "PATCH,/api/alerts/1/acknowledge", "PATCH,/api/alerts/1/resolve"})
+            "PATCH,/api/alerts/1/acknowledge", "PATCH,/api/alerts/1/resolve",
+            "PATCH,/api/alerts/1/archive", "PATCH,/api/alerts/1/unarchive"})
     void managementCannotMutateEvenWithValidCsrf(String method, String path) throws Exception {
         mvc.perform(request(HttpMethod.valueOf(method), path)
                         .with(user("manager").roles("MANAGEMENT")).with(csrf())
@@ -49,7 +50,8 @@ class PermissionMatrixIntegrationTests {
 
     @ParameterizedTest
     @CsvSource({"POST,/api/systems", "PUT,/api/systems/1", "POST,/api/systems/1/metrics",
-            "PATCH,/api/alerts/1/acknowledge", "PATCH,/api/alerts/1/resolve"})
+            "PATCH,/api/alerts/1/acknowledge", "PATCH,/api/alerts/1/resolve",
+            "PATCH,/api/alerts/1/archive", "PATCH,/api/alerts/1/unarchive"})
     void anonymousMutationWithValidCsrfRequiresLogin(String method, String path) throws Exception {
         mvc.perform(request(HttpMethod.valueOf(method), path).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))

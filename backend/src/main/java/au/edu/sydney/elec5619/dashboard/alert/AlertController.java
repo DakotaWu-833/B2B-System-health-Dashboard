@@ -24,9 +24,10 @@ public class AlertController {
             @RequestParam(required = false) AlertStatus status,
             @RequestParam(required = false) Long systemId,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "false") boolean archived) {
         return ApiResponse.success(
-                alertService.getAlerts(status, systemId, page, size),
+                alertService.getAlerts(status, systemId, page, size, archived),
                 "Alerts retrieved successfully");
     }
 
@@ -42,5 +43,15 @@ public class AlertController {
         return ApiResponse.success(
                 alertService.resolve(alertId),
                 "Alert resolved successfully");
+    }
+
+    @PatchMapping("/{alertId}/archive")
+    public ApiResponse<AlertResponse> archive(@PathVariable Long alertId) {
+        return ApiResponse.success(alertService.archive(alertId), "Alert archived successfully");
+    }
+
+    @PatchMapping("/{alertId}/unarchive")
+    public ApiResponse<AlertResponse> unarchive(@PathVariable Long alertId) {
+        return ApiResponse.success(alertService.unarchive(alertId), "Alert restored successfully");
     }
 }

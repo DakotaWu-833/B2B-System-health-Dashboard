@@ -5,6 +5,7 @@ const healthGroups = [
   ["warning", "Warning", "var(--warning)"],
   ["critical", "Critical", "var(--critical)"],
   ["offline", "Offline", "var(--offline)"],
+  ["noData", "No data", "#8d989f"],
 ];
 
 export function HealthDistribution({ summary }) {

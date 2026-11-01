@@ -22,6 +22,24 @@ describe("Data charts", () => {
     expect(slices[3].getAttribute("stroke-dasharray")).toBe("25 75");
   });
 
+  test("the gray no-data segment is included in the total and distribution", () => {
+    const { container } = render(<HealthDistribution summary={{ total: 6, healthy: 1, warning: 1, critical: 1, offline: 1, noData: 2 }} />);
+    expect(screen.getByRole("img", { name: "6 systems by health status" })).toBeInTheDocument();
+    const slices = container.querySelectorAll("circle[pathLength]");
+    expect(slices).toHaveLength(5);
+    expect(slices[4].getAttribute("stroke")).toBe("#8d989f");
+    expect(Number(slices[4].getAttribute("stroke-dasharray").split(" ")[0])).toBeCloseTo(100 / 3);
+    expect([...slices].reduce((sum, slice) => sum + Number(slice.getAttribute("stroke-dasharray").split(" ")[0]), 0)).toBeCloseTo(100);
+    expect(screen.getByText("No data").closest("li")).toHaveTextContent("2");
+  });
+
+  test("systems with no measurements still have a full gray distribution", () => {
+    const { container } = render(<HealthDistribution summary={{ total: 3, healthy: 0, warning: 0, critical: 0, offline: 0, noData: 3 }} />);
+    expect(screen.getByRole("img", { name: "3 systems by health status" })).toBeInTheDocument();
+    expect(container.querySelectorAll("circle[pathLength]")[4]).toHaveAttribute("stroke-dasharray", "100 0");
+    expect(screen.queryByText("No system data to chart yet.")).not.toBeInTheDocument();
+  });
+
   test("sorts observations without mutating input and spaces them by actual time", () => {
     const metrics = [
       { timestamp: "2026-10-18T00:10:00Z", cpuUsage: 50 },

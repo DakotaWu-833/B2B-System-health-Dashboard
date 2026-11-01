@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import Dashboard from "../src/Dashboard";
 import SystemsPage from "../src/SystemsPage";
@@ -152,5 +152,47 @@ describe("Dashboard", () => {
     expect(
       screen.queryByText("Payment API")
     ).not.toBeInTheDocument();
+  });
+
+  test("systems without readings are gray No data and are not presented as healthy", async () => {
+    const summary = { total: 2, healthy: 0, warning: 0, critical: 0, offline: 0, noData: 2,
+      freshReadingCount: 0, staleReadingCount: 0, activeAlertCount: 0,
+      averageCpuUsage: null, averageMemoryUsage: null, averageResponseTime: null };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({ ok: true, json: async () => ({ success: true, data: summary }) });
+    render(<Dashboard />);
+    const noDataCard = (await screen.findByRole("heading", { name: "No data", exact: true })).closest("article");
+    expect(noDataCard).toHaveTextContent("2");
+    expect(noDataCard.querySelector(".kpi-icon")).toHaveClass("status-no-data");
+    expect(screen.getByRole("heading", { name: "Healthy", exact: true }).closest("article")).toHaveTextContent("0");
+    expect(screen.getByText("2 systems have no readings")).toBeInTheDocument();
+    expect(screen.queryByText("All systems are healthy")).not.toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "2 systems by health status" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Latest reading freshness")).toHaveTextContent("0 recent · 0 outdated · 2 missing");
+  });
+
+  test("stale healthy readings keep their last health category without confirming current health", async () => {
+    const summary = { total: 1, healthy: 1, warning: 0, critical: 0, offline: 0, noData: 0,
+      freshReadingCount: 0, staleReadingCount: 1, activeAlertCount: 0 };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({ ok: true, json: async () => ({ success: true, data: summary }) });
+    render(<Dashboard />);
+    expect(await screen.findByText("1 system has outdated readings")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Healthy", exact: true }).closest("article")).toHaveTextContent("1");
+    expect(screen.getByRole("heading", { name: "Offline", exact: true }).closest("article")).toHaveTextContent("0");
+    expect(screen.queryByText("All systems are healthy")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Latest reading freshness")).toHaveTextContent("0 recent · 1 outdated · 0 missing");
+  });
+
+  test("fresh measured zero readings remain healthy and retain numeric average values", async () => {
+    const summary = { total: 1, healthy: 1, warning: 0, critical: 0, offline: 0, noData: 0,
+      freshReadingCount: 1, staleReadingCount: 0, activeAlertCount: 0,
+      averageCpuUsage: 0, averageMemoryUsage: 0, averageResponseTime: 0 };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({ ok: true, json: async () => ({ success: true, data: summary }) });
+    render(<Dashboard />);
+    expect(await screen.findByText("All systems are healthy")).toBeInTheDocument();
+    for (const [label, value] of [["Average CPU", "0%"], ["Average memory", "0%"], ["Average response time", "0 ms"]]) {
+      const card = screen.getByRole("heading", { name: label, exact: true }).closest("article");
+      expect(within(card).getByText(value, { exact: true })).toBeInTheDocument();
+      expect(within(card).queryByText("No data")).not.toBeInTheDocument();
+    }
   });
 });

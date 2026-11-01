@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import au.edu.sydney.elec5619.dashboard.common.InvalidPageRequestException;
+import au.edu.sydney.elec5619.dashboard.common.ApiProblemException;
 import au.edu.sydney.elec5619.dashboard.common.PagedResponse;
 import au.edu.sydney.elec5619.dashboard.common.RetryingTransaction;
 import au.edu.sydney.elec5619.dashboard.metric.Metric;
@@ -13,6 +14,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -81,22 +83,34 @@ public class AlertService {
             Long systemId,
             int page,
             int size) {
-        Pageable pageable = alertPage(page, size);
-        Page<Alert> alerts;
-        if (status != null && systemId != null) {
-            alerts = alertRepository.findByMonitoredSystemIdAndStatus(
-                    systemId,
-                    status,
-                    pageable);
-        } else if (status != null) {
-            alerts = alertRepository.findByStatus(status, pageable);
-        } else if (systemId != null) {
-            alerts = alertRepository.findByMonitoredSystemId(systemId, pageable);
-        } else {
-            alerts = alertRepository.findAll(pageable);
-        }
+        return getAlerts(status, systemId, page, size, false);
+    }
 
+    @Transactional(readOnly = true)
+    public PagedResponse<AlertResponse> getAlerts(
+            AlertStatus status, Long systemId, int page, int size, boolean archived) {
+        Page<Alert> alerts = alertRepository.findForView(status, systemId, archived, alertPage(page, size));
         return PagedResponse.from(alerts.map(AlertResponse::from));
+    }
+
+    public AlertResponse archive(Long alertId) {
+        return setArchived(alertId, true);
+    }
+
+    public AlertResponse unarchive(Long alertId) {
+        return setArchived(alertId, false);
+    }
+
+    private AlertResponse setArchived(Long alertId, boolean archived) {
+        return transaction.execute(() -> {
+            Alert alert = getAlert(alertId);
+            if (alert.getStatus() != AlertStatus.RESOLVED) {
+                throw new ApiProblemException(HttpStatus.CONFLICT, "Only resolved alerts can be archived or restored.");
+            }
+            // Repeated archive/restore requests are safe and preserve the resolved state.
+            alert.setArchived(archived);
+            return AlertResponse.from(alert);
+        });
     }
 
     public AlertResponse acknowledge(Long alertId) {

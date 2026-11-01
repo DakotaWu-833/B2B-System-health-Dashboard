@@ -18,13 +18,17 @@ public class AssistantController {
     private final AgentService agent;
     private final ProposalService proposals;
     private final AiProperties ai;
+    private final AiRuntimeProperties runtime;
     private final RedisStore redis;
-    public AssistantController(RagService rag, AgentService agent, ProposalService proposals, AiProperties ai, RedisStore redis) {
-        this.rag = rag; this.agent = agent; this.proposals = proposals; this.ai = ai; this.redis = redis;
+    public AssistantController(RagService rag, AgentService agent, ProposalService proposals, AiProperties ai, AiRuntimeProperties runtime, RedisStore redis) {
+        this.rag = rag; this.agent = agent; this.proposals = proposals; this.ai = ai; this.runtime = runtime; this.redis = redis;
     }
     @GetMapping("/status") public ApiResponse<Map<String, Object>> status() {
         return ApiResponse.success(Map.of("modelEnabled", ai.enabled(), "model", ai.model(), "embeddingModel", ai.embeddingModel(),
-                "redisEnabled", redis.enabled(), "maxToolCalls", ai.maxToolCalls()), "Assistant configuration");
+                "redisEnabled", redis.enabled(), "maxToolCalls", ai.maxToolCalls(),
+                "runtime", Map.of("contextTokens", runtime.contextTokens(), "batchSize", runtime.batchSize(),
+                        "embeddingContextTokens", runtime.embeddingContextTokens(), "keepAliveSeconds", runtime.keepAlive().toSeconds(),
+                        "embeddingKeepAliveSeconds", runtime.embeddingKeepAlive().toSeconds())), "Assistant configuration");
     }
     @PostMapping("/ask") public ApiResponse<RagService.Answer> ask(@Valid @RequestBody Question input, Authentication auth) {
         return ApiResponse.success(rag.ask(input.question(), input.systemId(), auth), "Knowledge search completed");

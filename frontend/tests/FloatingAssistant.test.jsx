@@ -105,6 +105,8 @@ test.each([["dashboard", "What needs attention right now?"], ["alerts", "Summari
   fireEvent.click(shortcut);
   expect(await screen.findByText("Current page answer")).toBeInTheDocument();
   expect(apiMutation).toHaveBeenCalledWith("/api/assistant/chat", "POST", expect.objectContaining({ question, context: expect.objectContaining({ page }) }), { signal: expect.any(AbortSignal) });
+  if (page === "alerts") expect(apiMutation.mock.calls[0][2].context.archived).toBe(false);
+  else expect(apiMutation.mock.calls[0][2].context).not.toHaveProperty("archived");
   expect(screen.getByRole("button", { name: question })).toBeEnabled();
 });
 
@@ -174,11 +176,49 @@ test("Ask AI on an actual board card binds the preset question to that alert", a
   fireEvent.click(screen.getByRole("button", { name: "Explain this alert." }));
   expect(await screen.findByText("Selected alert explanation")).toBeInTheDocument();
   expect(screen.getByText("Current availability is unknown because measurements are outdated.")).toBeInTheDocument();
-  expect(apiMutation.mock.calls[0][2].context).toEqual({ page: "alerts", systemId: 7, alertId: 42, status: "ALL" });
+  expect(apiMutation.mock.calls[0][2].context).toEqual({ page: "alerts", systemId: 7, alertId: 42, status: "ALL", archived: false });
   expect(screen.getByRole("button", { name: "Find a related runbook." })).toBeEnabled();
   fireEvent.click(screen.getByRole("button", { name: "Use page context" }));
   expect(screen.getByTitle("Alert Center")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Summarise the alerts in this view." })).toBeEnabled();
+});
+
+test("an archived card and Clear selection retain the archived view in the request context", async () => {
+  const alert = { alertId: 42, systemId: 7, systemName: "Checkout API", alertType: "HIGH_CPU", message: "CPU warning", severity: "WARNING", status: "RESOLVED", archived: true, createdTime: "2026-11-01T05:00:00Z" };
+  apiJson.mockImplementation(path => Promise.resolve({ items: path.includes("archived=true") ? [alert] : [], page: 0, totalPages: 1, first: true, last: true }));
+  apiMutation.mockResolvedValueOnce(reply("Archived alert explanation")).mockResolvedValueOnce(reply("Archived page explanation"));
+  render(shell("alerts", ops, <AlertCenter currentUser={ops} />));
+  fireEvent.click(screen.getByRole("button", { name: "Archived", exact: true }));
+  fireEvent.click(await screen.findByRole("button", { name: "Ask AI about Checkout API alert 42" }));
+  expect(screen.getByTitle("Alert Center · Archived · Checkout API · Alert #42")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Explain this alert." }));
+  await screen.findByText("Archived alert explanation");
+  expect(apiMutation.mock.calls[0][2].context).toEqual({ page: "alerts", systemId: 7, alertId: 42, status: "ALL", archived: true });
+
+  fireEvent.click(screen.getByRole("button", { name: "Use page context" }));
+  expect(screen.getByTitle("Alert Center · Archived")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Summarise the alerts in this view." }));
+  await screen.findByText("Archived page explanation");
+  expect(apiMutation.mock.calls[1][2].context).toEqual({ page: "alerts", systemId: null, alertId: null, status: "ALL", archived: true });
+  expect(apiMutation.mock.calls[1][2].history).toEqual([]);
+});
+
+test("an archived alert detail modal reports its archived scope before Ask AI opens", async () => {
+  const alert = { alertId: 42, systemId: 7, systemName: "Checkout API", alertType: "HIGH_CPU", message: "CPU warning", severity: "WARNING", status: "RESOLVED", archived: true, createdTime: "2026-11-01T05:00:00Z" };
+  apiJson.mockImplementation(path => Promise.resolve(path.startsWith("/api/alerts?")
+    ? { items: path.includes("archived=true") ? [alert] : [], page: 0, totalPages: 1, first: true, last: true }
+    : path.includes("/metrics/history?") ? { items: [], nextCursor: null }
+    : { id: 7, name: alert.systemName, type: "SERVICE", host: "checkout.test", status: "HEALTHY", metricDataStatus: "NO_DATA", statusReasons: [] }));
+  apiMutation.mockResolvedValue(reply("Archived modal explanation"));
+  render(shell("alerts", ops, <AlertCenter currentUser={ops} />));
+  fireEvent.click(screen.getByRole("button", { name: "Archived", exact: true }));
+  fireEvent.click(await screen.findByRole("button", { name: "View recent metrics for Checkout API alert 42" }));
+  await screen.findByRole("table", { name: "Recent metric readings" });
+  open();
+  expect(screen.getByTitle("Alert Center · Archived · Checkout API · Alert #42")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Explain this alert." }));
+  await screen.findByText("Archived modal explanation");
+  expect(apiMutation.mock.calls[0][2].context).toEqual({ page: "alerts", systemId: 7, alertId: 42, status: "ALL", archived: true });
 });
 
 test("proposals require review and confirmation, while Management has no action controls", async () => {

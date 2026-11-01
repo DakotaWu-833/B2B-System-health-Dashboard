@@ -47,6 +47,8 @@ class DashboardFreshnessIntegrationTests {
                 "Stale", "SERVICE", "stale.example", HealthStatus.HEALTHY, null));
         MonitoredSystem fresh = monitoredSystemRepository.saveAndFlush(new MonitoredSystem(
                 "Fresh", "SERVICE", "fresh.example", HealthStatus.HEALTHY, null));
+        MonitoredSystem missing = monitoredSystemRepository.saveAndFlush(new MonitoredSystem(
+                "Missing", "SERVICE", "missing.example", HealthStatus.HEALTHY, null));
         metricRepository.saveAndFlush(new Metric(
                 stale, new BigDecimal("60.00"), new BigDecimal("60.00"), 300L,
                 true, now.minusSeconds(60)));
@@ -56,6 +58,12 @@ class DashboardFreshnessIntegrationTests {
 
         mockMvc.perform(get("/api/dashboard/summary"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.total").value(3))
+                .andExpect(jsonPath("$.data.healthy").value(2))
+                .andExpect(jsonPath("$.data.offline").value(0))
+                .andExpect(jsonPath("$.data.noData").value(1))
+                .andExpect(jsonPath("$.data.freshReadingCount").value(1))
+                .andExpect(jsonPath("$.data.staleReadingCount").value(1))
                 .andExpect(jsonPath("$.data.averageCpuUsage").value(20.0))
                 .andExpect(jsonPath("$.data.averageMemoryUsage").value(30.0))
                 .andExpect(jsonPath("$.data.averageResponseTime").value(100.0));
@@ -65,7 +73,9 @@ class DashboardFreshnessIntegrationTests {
                 .andExpect(jsonPath("$.data[0].id").value(stale.getId()))
                 .andExpect(jsonPath("$.data[0].metricDataStatus").value("STALE"))
                 .andExpect(jsonPath("$.data[1].id").value(fresh.getId()))
-                .andExpect(jsonPath("$.data[1].metricDataStatus").value("FRESH"));
+                .andExpect(jsonPath("$.data[1].metricDataStatus").value("FRESH"))
+                .andExpect(jsonPath("$.data[2].id").value(missing.getId()))
+                .andExpect(jsonPath("$.data[2].metricDataStatus").value("NO_DATA"));
 
         mockMvc.perform(get("/api/systems/{id}", stale.getId()))
                 .andExpect(status().isOk())
@@ -74,6 +84,9 @@ class DashboardFreshnessIntegrationTests {
         mockMvc.perform(get("/api/systems/{id}", fresh.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.metricDataStatus").value("FRESH"));
+        mockMvc.perform(get("/api/systems/{id}", missing.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.metricDataStatus").value("NO_DATA"));
 
         mockMvc.perform(put("/api/systems/{id}", stale.getId()).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)

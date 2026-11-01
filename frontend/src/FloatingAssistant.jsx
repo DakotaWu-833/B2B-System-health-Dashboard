@@ -60,9 +60,9 @@ export default function FloatingAssistant({ scope, launch, host, currentUser, on
   const previousFocus = useRef(null);
   const messagesEnd = useRef(null);
   const previousThread = useRef(null);
-  const threadKey = JSON.stringify([scope.page, scope.systemId || null, scope.alertId || null, scope.status || "ALL"]);
+  const threadKey = JSON.stringify([scope.page, scope.systemId || null, scope.alertId || null, scope.status || "ALL", ...(scope.page === "alerts" ? [Boolean(scope.archived)] : [])]);
   const messages = threads[threadKey] || [];
-  const label = `${pages[scope.page] || "Workspace"}${scope.systemName ? ` · ${scope.systemName}` : ""}${scope.alertId ? ` · Alert #${scope.alertId}` : ""}`;
+  const label = `${pages[scope.page] || "Workspace"}${scope.page === "alerts" && scope.archived ? " · Archived" : ""}${scope.systemName ? ` · ${scope.systemName}` : ""}${scope.alertId ? ` · Alert #${scope.alertId}` : ""}`;
   const suggestions = scope.alertId ? ["Explain this alert.", "What should I check next?", "Find a related runbook."] : questions[scope.page] || questions.dashboard;
   const operations = currentUser?.role === "OPERATIONS";
   const wait = Math.max(0, Math.ceil((retryUntil - now) / 1000));
@@ -105,7 +105,7 @@ export default function FloatingAssistant({ scope, launch, host, currentUser, on
     const text = question.trim();
     if (!text || active.current || actionPending.current || wait > 0) return;
     const key = threadKey;
-    const context = { page: scope.page, systemId: scope.systemId || null, alertId: scope.alertId || null, status: scope.status || null };
+    const context = { page: scope.page, systemId: scope.systemId || null, alertId: scope.alertId || null, status: scope.status || null, ...(scope.page === "alerts" ? { archived: Boolean(scope.archived) } : {}) };
     const history = messages.filter(message => message.role === "user" || message.reply?.answer)
       .slice(-6).map(message => ({ role: message.role, content: (message.text || message.reply.answer).slice(0, 800) }));
     append(key, { id: ++id.current, role: "user", text, contextLabel: label });

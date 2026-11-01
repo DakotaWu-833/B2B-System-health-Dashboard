@@ -74,13 +74,13 @@ describe("Alert permissions and error handling", () => {
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
     expect(fetch).toHaveBeenLastCalledWith("/api/alerts?page=0&size=100", expect.anything());
   });
-  test("resolved alerts have no further action buttons", async () => {
+  test("resolved alerts offer archiving without further acknowledge or resolve actions", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(response(page([{ ...alert, status: "RESOLVED" }])));
     render(<AlertCenter currentUser={operations} />);
     await screen.findByText("Test API");
     expect(screen.queryByRole("button", { name: "Resolve" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Acknowledge" })).not.toBeInTheDocument();
-    expect(screen.getByText("No action required")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Archive", exact: true })).toBeEnabled();
   });
   test("failed alert retrieval can be retried", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});

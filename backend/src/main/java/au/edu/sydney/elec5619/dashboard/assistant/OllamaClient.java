@@ -13,13 +13,15 @@ import org.springframework.stereotype.Component;
 @Component
 public class OllamaClient {
     private final AiProperties properties;
+    private final AiRuntimeProperties runtime;
     private final ObjectMapper mapper;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
-    public OllamaClient(AiProperties properties, ObjectMapper mapper) { this.properties = properties; this.mapper = mapper; }
+    public OllamaClient(AiProperties properties, AiRuntimeProperties runtime, ObjectMapper mapper) { this.properties = properties; this.runtime = runtime; this.mapper = mapper; }
     public JsonNode chat(List<Map<String, Object>> messages, List<Map<String, Object>> tools, boolean json, Duration budget) {
         Map<String, Object> body = new HashMap<>();
         body.put("model", properties.model()); body.put("messages", messages); body.put("stream", false);
-        body.put("think", false); body.put("options", Map.of("temperature", 0, "num_predict", 1200, "num_ctx", 8192));
+        body.put("think", false); body.put("keep_alive", runtime.keepAlive().toMillis() + "ms");
+        body.put("options", Map.of("temperature", 0, "num_predict", 1200, "num_ctx", runtime.contextTokens(), "num_batch", runtime.batchSize()));
         if (!tools.isEmpty()) body.put("tools", tools);
         if (json) body.put("format", "json");
         JsonNode response = post("/api/chat", body, budget);
@@ -28,7 +30,8 @@ public class OllamaClient {
     }
     public List<double[]> embed(List<String> texts, Duration budget) {
         JsonNode vectors = post("/api/embed", Map.of("model", properties.embeddingModel(), "input", texts,
-                "truncate", false), budget).path("embeddings");
+                "truncate", false, "keep_alive", runtime.embeddingKeepAlive().toMillis() + "ms",
+                "options", Map.of("num_ctx", runtime.embeddingContextTokens(), "num_batch", runtime.batchSize())), budget).path("embeddings");
         if (!vectors.isArray() || vectors.size() != texts.size()) throw new ModelUnavailableException();
         List<double[]> result = new ArrayList<>();
         for (JsonNode vector : vectors) {

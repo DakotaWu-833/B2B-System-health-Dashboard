@@ -21,7 +21,7 @@ class RagDeadlineTests {
         when(retrieval.search(eq("CPU"), isNull(), eq(auth), any())).thenAnswer(i -> { Thread.sleep(100); return evidence; });
         when(knowledge.current(anyList(), eq(auth))).thenReturn(true);
         when(model.chat(anyList(), anyList(), eq(true), any())).thenReturn(mapper.readTree("{\"content\":\"{\\\"answer\\\":\\\"Inspect CPU\\\",\\\"citationIds\\\":[\\\"D1v0c0\\\"]}\"}"));
-        var rag = new RagService(retrieval, knowledge, model, new AiProperties(true, URI.create("http://localhost"), "test", "", Duration.ofSeconds(2), 6), mapper);
+        var rag = new RagService(retrieval, knowledge, model, new AiProperties(true, URI.create("http://localhost"), "test", "", Duration.ofSeconds(2), 6), mapper, new OperationalAnswerGuard(mapper));
         assertThat(rag.ask("CPU", null, auth).status()).isEqualTo("generated_with_sources");
         var remaining = ArgumentCaptor.forClass(Duration.class);
         verify(model).chat(anyList(), anyList(), eq(true), remaining.capture());
@@ -35,7 +35,8 @@ class RagDeadlineTests {
             Thread.sleep(1050); return new RetrievalService.Result("bm25_embedding_unavailable", citations);
         });
         when(knowledge.current(citations, auth)).thenReturn(true);
-        var rag = new RagService(retrieval, knowledge, model, new AiProperties(true, URI.create("http://localhost"), "test", "", Duration.ofSeconds(1), 6), new ObjectMapper());
+        var mapper = new ObjectMapper();
+        var rag = new RagService(retrieval, knowledge, model, new AiProperties(true, URI.create("http://localhost"), "test", "", Duration.ofSeconds(1), 6), mapper, new OperationalAnswerGuard(mapper));
         var answer = rag.ask("CPU", null, auth);
         assertThat(answer.status()).isEqualTo("model_timeout"); assertThat(answer.answer()).isNull();
         assertThat(answer.citations()).isEqualTo(citations); verifyNoInteractions(model);

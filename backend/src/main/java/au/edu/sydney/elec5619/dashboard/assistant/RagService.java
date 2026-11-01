@@ -16,9 +16,11 @@ public class RagService {
     private final OllamaClient model;
     private final AiProperties properties;
     private final ObjectMapper mapper;
+    private final OperationalAnswerGuard answerGuard;
     public RagService(RetrievalService retrieval, KnowledgeService knowledge, OllamaClient model,
-                      AiProperties properties, ObjectMapper mapper) {
+                      AiProperties properties, ObjectMapper mapper, OperationalAnswerGuard answerGuard) {
         this.retrieval = retrieval; this.knowledge = knowledge; this.model = model; this.properties = properties; this.mapper = mapper;
+        this.answerGuard = answerGuard;
     }
     public Answer ask(String query, Long systemId, Authentication auth) {
         return answer(query, systemId, auth, List.of(), "");
@@ -46,10 +48,15 @@ public class RagService {
                                 + "When measurementFreshness is STALE or NO_DATA, currentAvailability is UNKNOWN: state this explicitly and describe health only as last reported. "
                                 + "Alert historicalMessage and reportedCondition describe a past monitoring event; currentWorkflowStatus describes ownership, not current service availability. "
                                 + "Do not claim current downtime or a confirmed root cause from old readings. Relative time must use the current clock supplied below. "
+                                + "Server-verified operational facts control health counts, freshness and current availability. "
+                                + "A summary evaluatedAt or capturedAt timestamp is not a measurement timestamp. "
+                                + "If freshReadingCount is zero, no metric reading is fresh; if stale or missing counts are nonzero, coverage is partial. "
+                                + "No data is never Healthy. Alert ownership, resolution or archiving never proves recovery. "
                                 + "If evidence is insufficient return an empty answer and empty citationIds. Answer in the user's language."),
                         Map.of("role", "user", "content", "Current observation time (UTC): " + Instant.now() + "\nQuestion: " + query + "\nRunbook evidence: " + sources
                                 + "\nCurrent server observations: " + mapper.writeValueAsString(observations) + "\nPrior discussion: " + history
-                                + (attempt == 0 ? "" : "\nFormatting correction: use exact source IDs only in citationIds, never family placeholders; plain answer text must contain no bracket references. Correct any current-availability claim if evidence says UNKNOWN."))),
+                                + "\nServer-verified operational facts: " + answerGuard.facts(observations)
+                                + (attempt == 0 ? "" : "\nValidation correction: the previous answer failed reference or operational-fact validation. Use exact source IDs and the verified counts. Do not claim fresh data, downtime or recovery without supporting current measurements. Plain answer text must contain no bracket references."))),
                         List.of(), true, Duration.between(Instant.now(), deadline));
                 var json = mapper.readTree(message.path("content").asText());
                 Set<String> allowed = new HashSet<>(evidence.citations().stream().map(KnowledgeService.Citation::id).toList());
@@ -62,7 +69,7 @@ public class RagService {
                 while (refs.find()) Arrays.stream(refs.group(1).split("\\s*[,;]\\s*")).map(String::trim).forEach(inline::add);
                 if (text.isEmpty()) answer = new Answer("insufficient_evidence", null, evidence.mode(), evidence.citations());
                 else if (json.path("citationIds").isArray() && !used.isEmpty() && allowed.containsAll(used)
-                        && used.containsAll(inline) && text.length() <= 12000) {
+                        && used.containsAll(inline) && text.length() <= 12000 && answerGuard.accepts(text, observations)) {
                     Set<String> missing = new HashSet<>(used); missing.removeAll(inline);
                     String referenced = missing.isEmpty() ? text : text + "\n\n" + missing.stream().sorted().map(id -> "[" + id + "]").collect(java.util.stream.Collectors.joining(" "));
                     answer = new Answer("generated_with_sources", referenced, evidence.mode(), evidence.citations().stream().filter(c -> used.contains(c.id())).toList());

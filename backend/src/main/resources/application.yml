@@ -62,6 +62,12 @@ app:
     embedding-model: ${AI_EMBEDDING_MODEL:}
     timeout: ${AI_TIMEOUT:PT30S}
     max-tool-calls: ${AI_MAX_TOOL_CALLS:6}
+    runtime:
+      context-tokens: ${AI_CONTEXT_TOKENS:8192}
+      batch-size: ${AI_BATCH_SIZE:256}
+      embedding-context-tokens: ${AI_EMBEDDING_CONTEXT_TOKENS:4096}
+      keep-alive: ${AI_KEEP_ALIVE:PT1M}
+      embedding-keep-alive: ${AI_EMBEDDING_KEEP_ALIVE:PT15S}
   email:
     enabled: ${EMAIL_ENABLED:false}
     from: ${EMAIL_FROM:no-reply@dashboard.local}

@@ -97,11 +97,14 @@ class DashboardSummaryIntegrationTests {
                 .andExpect(jsonPath("$.data.warning").value(0))
                 .andExpect(jsonPath("$.data.critical").value(0))
                 .andExpect(jsonPath("$.data.offline").value(0))
+                .andExpect(jsonPath("$.data.noData").value(0))
+                .andExpect(jsonPath("$.data.freshReadingCount").value(0))
+                .andExpect(jsonPath("$.data.staleReadingCount").value(0))
                 .andExpect(jsonPath("$.data.activeAlertCount").value(0));
     }
 
     @Test
-    void systemsWithoutMetricsRemainCountedWithoutInventingAverages() throws Exception {
+    void systemsWithoutMetricsAreNoDataRegardlessOfStoredHealthWithoutInventingAverages() throws Exception {
         createSystem("Healthy", HealthStatus.HEALTHY);
         createSystem("Warning", HealthStatus.WARNING);
         createSystem("Critical", HealthStatus.CRITICAL);
@@ -109,10 +112,13 @@ class DashboardSummaryIntegrationTests {
 
         noAverages(summary())
                 .andExpect(jsonPath("$.data.total").value(4))
-                .andExpect(jsonPath("$.data.healthy").value(1))
-                .andExpect(jsonPath("$.data.warning").value(1))
-                .andExpect(jsonPath("$.data.critical").value(1))
-                .andExpect(jsonPath("$.data.offline").value(1));
+                .andExpect(jsonPath("$.data.healthy").value(0))
+                .andExpect(jsonPath("$.data.warning").value(0))
+                .andExpect(jsonPath("$.data.critical").value(0))
+                .andExpect(jsonPath("$.data.offline").value(0))
+                .andExpect(jsonPath("$.data.noData").value(4))
+                .andExpect(jsonPath("$.data.freshReadingCount").value(0))
+                .andExpect(jsonPath("$.data.staleReadingCount").value(0));
     }
 
     @Test
@@ -132,7 +138,7 @@ class DashboardSummaryIntegrationTests {
     }
 
     @Test
-    void excludesMissingStaleAndUnavailableReadingsWithoutChangingStatusCounts() throws Exception {
+    void separatesMissingFromMeasuredHealthAndExcludesStaleAndUnavailableReadingsFromAverages() throws Exception {
         Instant now = Instant.now();
         MonitoredSystem fresh = createSystem("Fresh", HealthStatus.HEALTHY);
         MonitoredSystem stale = createSystem("Stale", HealthStatus.WARNING);
@@ -144,9 +150,12 @@ class DashboardSummaryIntegrationTests {
 
         summary()
                 .andExpect(jsonPath("$.data.total").value(4))
-                .andExpect(jsonPath("$.data.healthy").value(2))
+                .andExpect(jsonPath("$.data.healthy").value(1))
                 .andExpect(jsonPath("$.data.warning").value(1))
                 .andExpect(jsonPath("$.data.offline").value(1))
+                .andExpect(jsonPath("$.data.noData").value(1))
+                .andExpect(jsonPath("$.data.freshReadingCount").value(2))
+                .andExpect(jsonPath("$.data.staleReadingCount").value(1))
                 .andExpect(jsonPath("$.data.averageCpuUsage").value(20.0))
                 .andExpect(jsonPath("$.data.averageMemoryUsage").value(30.0))
                 .andExpect(jsonPath("$.data.averageResponseTime").value(100.0));
@@ -162,6 +171,10 @@ class DashboardSummaryIntegrationTests {
 
         noAverages(summary())
                 .andExpect(jsonPath("$.data.warning").value(1))
+                .andExpect(jsonPath("$.data.offline").value(0))
+                .andExpect(jsonPath("$.data.noData").value(0))
+                .andExpect(jsonPath("$.data.freshReadingCount").value(0))
+                .andExpect(jsonPath("$.data.staleReadingCount").value(1))
                 .andExpect(jsonPath("$.data.activeAlertCount").value(1));
     }
 
@@ -179,9 +192,47 @@ class DashboardSummaryIntegrationTests {
         createMetric(system, "0.00", "0.00", 0L, true, Instant.now());
 
         summary()
+                .andExpect(jsonPath("$.data.healthy").value(1))
+                .andExpect(jsonPath("$.data.noData").value(0))
+                .andExpect(jsonPath("$.data.freshReadingCount").value(1))
+                .andExpect(jsonPath("$.data.staleReadingCount").value(0))
                 .andExpect(jsonPath("$.data.averageCpuUsage").value(0.0))
                 .andExpect(jsonPath("$.data.averageMemoryUsage").value(0.0))
                 .andExpect(jsonPath("$.data.averageResponseTime").value(0.0));
+    }
+
+    @Test
+    void everySystemBelongsToExactlyOneHealthAndOneLatestReadingCategory() throws Exception {
+        Instant now = Instant.now();
+        createSystem("Missing", HealthStatus.HEALTHY);
+        createMetric(createSystem("Stale healthy", HealthStatus.HEALTHY),
+                "20.00", "20.00", 100L, true, now.minusSeconds(600));
+        MonitoredSystem idle = createSystem("Fresh zero", HealthStatus.HEALTHY);
+        createMetric(idle, "20.00", "20.00", 100L, true, now.minusSeconds(600));
+        createMetric(idle, "0.00", "0.00", 0L, true, now);
+        createMetric(createSystem("Stale warning", HealthStatus.WARNING),
+                "80.00", "20.00", 100L, true, now.minusSeconds(600));
+        createMetric(createSystem("Fresh critical", HealthStatus.CRITICAL),
+                "95.00", "20.00", 100L, true, now);
+        createMetric(createSystem("Fresh offline", HealthStatus.OFFLINE),
+                "0.00", "0.00", 0L, false, now);
+
+        String response = summary()
+                .andExpect(jsonPath("$.data.total").value(6))
+                .andExpect(jsonPath("$.data.healthy").value(2))
+                .andExpect(jsonPath("$.data.warning").value(1))
+                .andExpect(jsonPath("$.data.critical").value(1))
+                .andExpect(jsonPath("$.data.offline").value(1))
+                .andExpect(jsonPath("$.data.noData").value(1))
+                .andExpect(jsonPath("$.data.freshReadingCount").value(3))
+                .andExpect(jsonPath("$.data.staleReadingCount").value(2))
+                .andReturn().getResponse().getContentAsString();
+        var data = objectMapper.readTree(response).path("data");
+        assertThat(data.path("healthy").asLong() + data.path("warning").asLong()
+                + data.path("critical").asLong() + data.path("offline").asLong() + data.path("noData").asLong())
+                .isEqualTo(data.path("total").asLong());
+        assertThat(data.path("freshReadingCount").asLong() + data.path("staleReadingCount").asLong()
+                + data.path("noData").asLong()).isEqualTo(data.path("total").asLong());
     }
 
     @Test
@@ -303,7 +354,7 @@ class DashboardSummaryIntegrationTests {
                 .andExpect(jsonPath("$.data.total").value(12))
                 .andExpect(jsonPath("$.data.averageCpuUsage").value(20.0));
 
-        assertThat(statistics.getPrepareStatementCount()).isEqualTo(7L);
+        assertThat(statistics.getPrepareStatementCount()).isEqualTo(4L);
     }
 
     private ResultActions summary() throws Exception {

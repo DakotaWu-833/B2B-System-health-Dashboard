@@ -71,7 +71,9 @@ public class SecurityConfig {
                         .requestMatchers(
                                 HttpMethod.PATCH,
                                 "/api/alerts/*/acknowledge",
-                                "/api/alerts/*/resolve")
+                                "/api/alerts/*/resolve",
+                                "/api/alerts/*/archive",
+                                "/api/alerts/*/unarchive")
                         .hasRole("OPERATIONS")
                         .requestMatchers(
                                 HttpMethod.POST,

@@ -17,6 +17,12 @@ export default function SystemsPage({ currentUser, onSessionExpired }) {
   const [feedback, setFeedback] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [keyword, setKeyword] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [systemTypes, setSystemTypes] = useState([]);
+  const filterCount = Number(Boolean(statusFilter)) + Number(Boolean(typeFilter));
+  const hasQuery = Boolean(keyword || filterCount);
   const collection = useRef(null);
   const controller = useRef(null);
   const allowed = currentUser?.role === "OPERATIONS";
@@ -28,11 +34,14 @@ export default function SystemsPage({ currentUser, onSessionExpired }) {
     controller.current?.abort(); const active = new AbortController(); controller.current = active;
     if (!background) setLoading(true); setError("");
     try {
-      if (keyword) {
+      if (filtersOpen || keyword || statusFilter || typeFilter) {
         const systems = collection.current ?? await readCollection("/api/systems/page", { signal: active.signal });
         if (active.signal.aborted) return;
         collection.current = systems;
-        setPage(collectionPage(systems.filter(system => nameIncludes(system.name, keyword)), index, 12));
+        setSystemTypes([...new Set(systems.map(system => system.type).filter(Boolean))].sort((a, b) => a.localeCompare(b)));
+        setPage(collectionPage(systems.filter(system => nameIncludes(system.name, keyword)
+          && (!statusFilter || systemHealthDisplay(system).className === statusFilter)
+          && (!typeFilter || system.type === typeFilter)), index, 12));
         return;
       }
       const data = await apiJson(`/api/systems/page?page=${index}&size=12`, { signal: active.signal });
@@ -43,27 +52,41 @@ export default function SystemsPage({ currentUser, onSessionExpired }) {
       if (active.signal.aborted) return;
       if (failure.status === 401) onSessionExpired?.(); else setError("Unable to load systems. Please try again.");
     } finally { if (!active.signal.aborted) setLoading(false); }
-  }, [onSessionExpired, keyword]);
+  }, [onSessionExpired, keyword, filtersOpen, statusFilter, typeFilter]);
   useEffect(() => { load(); return () => controller.current?.abort(); }, [load]);
   async function saved(system) {
     setFeedback(`${system.name} ${form.system ? "updated" : "created"} successfully.`);
     setForm(null); collection.current = null; await load(page.page, true);
   }
   return <section className="systems-page" aria-labelledby="systems-title">
-    <div className="page-heading"><div><p className="section-kicker">Infrastructure inventory</p><h2 id="systems-title">Systems</h2><p className="section-copy">{page.totalElements} {keyword ? "matching" : "registered"} systems · Select a card to investigate.</p></div>
+    <div className="page-heading"><div><p className="section-kicker">Infrastructure inventory</p><h2 id="systems-title">Systems</h2><p className="section-copy">{page.totalElements} {hasQuery ? "matching" : "registered"} systems · Select a card to investigate.</p></div>
       <div className="row-actions"><button className="button-secondary" disabled={loading} onClick={() => { collection.current = null; load(page.page); }}>Refresh systems</button>
         {allowed && <button onClick={() => setForm({ system: null })}>Add system</button>}</div></div>
     <HeaderTools><form className="collection-search" role="search" aria-label="System search" onSubmit={event => { event.preventDefault(); const next = searchInput.trim(); if (next === keyword) load(0); else setKeyword(next); }}>
       <label htmlFor="system-name-search">Search systems by name</label>
       <div><input id="system-name-search" type="search" placeholder="Enter part of a system name" value={searchInput} onChange={event => setSearchInput(event.target.value)} />
         <button type="submit" className="button-secondary">Search systems</button>
-        {(keyword || searchInput) && <button type="button" className="button-secondary" onClick={() => { setSearchInput(""); setKeyword(""); }}>Clear search</button>}</div>
+        {(keyword || searchInput) && <button type="button" className="button-secondary" onClick={() => { setSearchInput(""); setKeyword(""); }}>Clear search</button>}
+        <button type="button" className={`button-secondary system-filter-toggle${filterCount ? " has-filters" : ""}`} aria-expanded={filtersOpen} aria-controls="system-filters" onClick={() => setFiltersOpen(value => !value)}>Filters{filterCount > 0 && <span className="system-filter-count">{filterCount}</span>}<span aria-hidden="true">{filtersOpen ? "−" : "+"}</span></button></div>
       {keyword && <p className="section-copy">Showing names containing “{keyword}” across all systems.</p>}
     </form></HeaderTools>
+    <fieldset id="system-filters" className="system-filters" hidden={!filtersOpen}>
+      <legend>Filter systems</legend>
+      <div className="system-filter-fields">
+        <label htmlFor="system-status-filter">Health status<select id="system-status-filter" value={statusFilter} disabled={loading} onChange={event => setStatusFilter(event.target.value)}>
+          <option value="">All statuses</option><option value="status-healthy">Healthy</option><option value="status-warning">Warning</option><option value="status-critical">Critical</option><option value="status-offline">Offline</option><option value="status-no-data">No data</option>
+        </select></label>
+        <label htmlFor="system-type-filter">System type<select id="system-type-filter" value={typeFilter} disabled={loading} onChange={event => setTypeFilter(event.target.value)}>
+          <option value="">All types</option>{typeFilter && !systemTypes.includes(typeFilter) && <option value={typeFilter}>{typeFilter}</option>}{systemTypes.map(type => <option key={type} value={type}>{type}</option>)}
+        </select></label>
+        <button type="button" className="button-secondary" disabled={!filterCount} onClick={() => { setStatusFilter(""); setTypeFilter(""); }}>Clear filters</button>
+        <p className="section-copy" role="status">{loading ? "Loading filter options…" : error ? "Refresh systems to retry." : `${page.totalElements} matching systems`}</p>
+      </div>
+    </fieldset>
     {feedback && <p role="status" className="success-message">{feedback}</p>}
     {error && <p role="alert" className="error-message">{error}</p>}
     {loading ? <p role="status">Loading systems…</p> : !error && <>
-      {!page.items.length && <p className="empty-state">{keyword ? `No systems match “${keyword}”.` : "No monitored systems are available yet."}</p>}
+      {!page.items.length && <p className="empty-state">{filterCount ? "No systems match the selected filters. Try changing or clearing your filters." : keyword ? `No systems match “${keyword}”.` : "No monitored systems are available yet."}</p>}
       <div className="system-card-grid">{page.items.map(system => { const health = systemHealthDisplay(system); return <article className="system-card" key={system.id}>
         <button className="system-card-open" onClick={() => setSelected(system)} aria-label={`${system.name} ${system.type} ${system.host} ${health.label}`}>
           <div className="system-card-top"><span className="system-type">{system.type}</span><span className={`system-status ${health.className}`}>{health.label}</span></div>

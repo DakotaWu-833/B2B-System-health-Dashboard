@@ -54,6 +54,12 @@ the old browser request and late responses cannot enter the new conversation.
 The existing 55/110-second limits and cancellation apply to chat/investigation.
 The launcher also mounts inside native system dialogs so it remains operable
 there; Escape closes the conversation before closing the underlying dialog.
+The launcher and conversation header can be dragged; positions are kept per page
+for the signed-in session and constrained to the visible window. The move handle
+and launcher also support arrow keys, with Home or Reset position restoring the
+default. Alert Center starts the launcher higher, and pagination reserves space
+so the default launcher does not cover navigation. On narrow screens, closing
+the conversation restores the launcher instead of keeping it over the input.
 
 Alert Center uses the same board structure as StudyCrew tasks: Active,
 Acknowledged and Resolved columns, counts in fixed column headings and separate

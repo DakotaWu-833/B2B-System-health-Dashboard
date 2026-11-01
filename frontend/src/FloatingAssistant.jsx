@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { apiMutation } from "./api";
 import { assistantRequest } from "./assistantRequest";
 import Icon from "./Icons";
+import useAssistantPosition from "./useAssistantPosition";
 
 const pages = { dashboard: "Dashboard", system: "Systems", alerts: "Alert Center", profile: "My profile", retention: "Metric retention", assistant: "Runbook library" };
 const notices = {
@@ -54,6 +55,8 @@ export default function FloatingAssistant({ scope, launch, host, currentUser, on
   const id = useRef(0);
   const composer = useRef(null);
   const launcher = useRef(null);
+  const panel = useRef(null);
+  const position = useAssistantPosition(scope.page, open, host, launcher, panel);
   const previousFocus = useRef(null);
   const messagesEnd = useRef(null);
   const previousThread = useRef(null);
@@ -142,9 +145,11 @@ export default function FloatingAssistant({ scope, launch, host, currentUser, on
     } finally { actionPending.current = false; if (mounted.current) setConfirming(false); }
   }
   function close() { setOpen(false); launcher.current?.focus(); }
-  const content = <div className={`context-assistant${host ? " context-assistant--in-modal" : ""}`}>
-    {open && <section className="context-chat" id="context-ai-chat" role="dialog" aria-label="AI conversation" onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); close(); } }}>
-      <header className="context-chat-header"><span className="context-chat-avatar"><Icon name="assistant" /></span><div><h2>Operations assistant</h2><p><span className="chat-presence" />Here to help with this page</p></div>
+  const content = <div className={`context-assistant${scope.page === "alerts" ? " context-assistant--alerts" : ""}${host ? " context-assistant--in-modal" : ""}`} data-dragging={position.moving || undefined}>
+    <p id="ai-position-help" className="visually-hidden">Drag to move, or use arrow keys when the move handle or AI button is focused. Press Home to reset the position.</p>
+    {open && <section ref={panel} style={position.panelStyle} className="context-chat" id="context-ai-chat" role="dialog" aria-label="AI conversation" onKeyDown={event => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); close(); } }}>
+      <header className="context-chat-header" {...position.panelEvents}><button type="button" className="chat-move-handle" data-ai-drag-handle aria-label="Move AI conversation" aria-describedby="ai-position-help" onKeyDown={position.panelKeyDown} title="Drag to move · Arrow keys to move · Home to reset"><span aria-hidden="true">⠿</span></button><span className="context-chat-avatar"><Icon name="assistant" /></span><div><h2>Operations assistant</h2><p><span className="chat-presence" />Here to help with this page</p></div>
+        <button type="button" className="chat-icon-button chat-reset-position" aria-label="Reset AI position" title="Reset position" onClick={position.reset}><Icon name="refresh" /></button>
         <button type="button" className="chat-icon-button" aria-label="Close AI conversation" onClick={close}><Icon name="close" /></button>
       </header>
       <div className="context-chat-scope"><Icon name={scope.page === "assistant" ? "runbooks" : scope.page} /><span title={label}>{label}</span>{selectionActive ? <button type="button" className="chat-scope-tag" aria-label="Use page context" title="Ask about the whole page" disabled={confirming} onClick={onClearSelection}>Clear selection</button> : <span className="chat-scope-tag">Page context</span>}</div>
@@ -179,7 +184,7 @@ export default function FloatingAssistant({ scope, launch, host, currentUser, on
         <div className="chat-footer-note"><span>{wait > 0 ? `Try again in ${wait}s` : "Check the evidence before acting."}</span><button type="button" className="chat-clear" disabled={busy || confirming || !messages.length} onClick={() => { setThreads(previous => ({ ...previous, [threadKey]: [] })); setReview(null); setActionError(""); }}>New chat</button></div>
       </footer>
     </section>}
-    <button ref={launcher} type="button" className={`context-ai-launcher${open ? " is-open" : ""}`} aria-label={open ? "Minimise AI assistant" : "Open AI assistant"} aria-expanded={open} aria-controls="context-ai-chat" onClick={() => setOpen(value => !value)}><Icon name={open ? "close" : "assistant"} /><span>{open ? "Minimise" : "Ask AI"}</span>{!open && <span className="chat-launcher-dot" />}</button>
+    <button ref={launcher} style={position.launcherStyle} {...position.launcherEvents} onKeyDown={position.launcherKeyDown} type="button" className={`context-ai-launcher${open ? " is-open" : ""}`} aria-label={open ? "Minimise AI assistant" : "Open AI assistant"} aria-describedby="ai-position-help" title="Click to chat · Drag to move" aria-expanded={open} aria-controls="context-ai-chat" onClick={event => { if (!position.consumeDragClick(event)) setOpen(value => !value); }}><Icon name={open ? "close" : "assistant"} /><span>{open ? "Minimise" : "Ask AI"}</span>{!open && <span className="chat-launcher-dot" />}</button>
   </div>;
   return createPortal(content, host || document.body);
 }

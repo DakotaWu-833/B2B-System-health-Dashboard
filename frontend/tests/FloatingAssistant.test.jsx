@@ -7,12 +7,96 @@ import Modal from "../src/Modal";
 import { apiJson, apiMutation } from "../src/api";
 
 vi.mock("../src/api", () => ({ apiJson: vi.fn(), apiFetch: vi.fn(), apiMutation: vi.fn() }));
-afterEach(() => { vi.useRealTimers(); vi.resetAllMocks(); });
+afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.resetAllMocks(); vi.unstubAllGlobals(); });
 const ops = { username: "operator", role: "OPERATIONS" };
 const reply = (answer = "Current page answer") => ({ status: "generated_with_sources", answer, contextLabel: "Dashboard", capturedAt: "2026-11-01T05:00:00Z", citations: [], observations: [], proposals: [] });
 const shell = (page = "dashboard", user = ops, child = <p>Business page</p>) => <AssistantProvider page={page} currentUser={user}>{child}</AssistantProvider>;
 function open() { fireEvent.click(screen.getByRole("button", { name: "Open AI assistant" })); }
 function message(text) { fireEvent.change(screen.getByLabelText("Message the AI assistant"), { target: { value: text } }); fireEvent.click(screen.getByRole("button", { name: "Send AI message" })); }
+
+function draggableGeometry() {
+  vi.stubGlobal("PointerEvent", class extends MouseEvent {
+    constructor(type, options = {}) { super(type, options); this.pointerId = options.pointerId ?? 1; this.isPrimary = true; }
+  });
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function () {
+    const panel = this.classList.contains("context-chat");
+    const x = this.style.left ? Number.parseFloat(this.style.left) : panel ? 580 : 880;
+    const y = this.style.top ? Number.parseFloat(this.style.top) : panel ? 40 : 680;
+    const width = panel ? Math.min(420, window.innerWidth - 24) : 120;
+    const height = panel ? Math.min(600, window.innerHeight - 100) : 58;
+    return { x, y, left: x, top: y, right: x + width, bottom: y + height, width, height };
+  });
+}
+function drag(target, from, to) {
+  fireEvent.pointerDown(target, { pointerId: 1, button: 0, clientX: from[0], clientY: from[1] });
+  fireEvent.pointerMove(target, { pointerId: 1, clientX: to[0], clientY: to[1] });
+  fireEvent.pointerUp(target, { pointerId: 1, clientX: to[0], clientY: to[1] });
+}
+
+test("dragging the launcher does not open chat, stays in the viewport and keeps each page's position", () => {
+  draggableGeometry(); const view = render(shell("alerts"));
+  const launcher = screen.getByRole("button", { name: "Open AI assistant" });
+  expect(launcher.closest(".context-assistant")).toHaveClass("context-assistant--alerts");
+  drag(launcher, [900, 700], [100, 100]);
+  fireEvent.click(launcher, { detail: 1 });
+  expect(screen.queryByRole("dialog", { name: "AI conversation" })).not.toBeInTheDocument();
+  expect(launcher).toHaveStyle({ left: "80px", top: "80px" });
+  view.rerender(shell("system"));
+  expect(launcher.style.left).toBe("");
+  view.rerender(shell("alerts"));
+  expect(launcher).toHaveStyle({ left: "80px", top: "80px" });
+  drag(launcher, [100, 100], [-300, -300]);
+  expect(launcher).toHaveStyle({ left: "8px", top: "8px" });
+  // A new deliberate click and keyboard activation still work after a drag.
+  fireEvent.pointerDown(launcher, { pointerId: 2, button: 0, clientX: 20, clientY: 20 });
+  fireEvent.pointerUp(launcher, { pointerId: 2, clientX: 20, clientY: 20 });
+  fireEvent.click(launcher, { detail: 1 });
+  expect(screen.getByRole("dialog", { name: "AI conversation" })).toBeInTheDocument();
+});
+
+test("the conversation can move independently, preserves its draft across minimise and resets on demand", () => {
+  draggableGeometry(); render(shell()); open();
+  const chat = screen.getByRole("dialog", { name: "AI conversation" });
+  fireEvent.change(screen.getByLabelText("Message the AI assistant"), { target: { value: "Keep my question" } });
+  drag(chat.querySelector("header"), [600, 60], [100, 120]);
+  expect(chat).toHaveStyle({ left: "80px", top: "100px" });
+  fireEvent.click(screen.getByRole("button", { name: "Minimise AI assistant" })); open();
+  expect(screen.getByRole("dialog", { name: "AI conversation" })).toHaveStyle({ left: "80px", top: "100px" });
+  expect(screen.getByLabelText("Message the AI assistant")).toHaveValue("Keep my question");
+  fireEvent.click(screen.getByRole("button", { name: "Reset AI position" }));
+  expect(screen.getByRole("dialog", { name: "AI conversation" }).style.left).toBe("");
+  expect(screen.getByLabelText("Message the AI assistant")).toHaveValue("Keep my question");
+});
+
+test("keyboard movement and window resizing keep the assistant reachable", () => {
+  draggableGeometry(); render(shell());
+  const launcher = screen.getByRole("button", { name: "Open AI assistant" });
+  fireEvent.keyDown(launcher, { key: "ArrowLeft" });
+  expect(launcher).toHaveStyle({ left: "864px" });
+  vi.stubGlobal("innerWidth", 390); vi.stubGlobal("innerHeight", 600);
+  fireEvent(window, new Event("resize"));
+  expect(launcher).toHaveStyle({ left: "262px", top: "534px" });
+  open();
+  const chat = screen.getByRole("dialog", { name: "AI conversation" });
+  expect(chat).toHaveStyle({ left: "16px", top: "16px" });
+  fireEvent.keyDown(screen.getByRole("button", { name: "Move AI conversation" }), { key: "ArrowLeft", shiftKey: true });
+  expect(chat).toHaveStyle({ left: "8px" });
+  fireEvent.keyDown(launcher, { key: "Home" });
+  expect(launcher.style.left).toBe(""); expect(chat.style.left).toBe("");
+});
+
+test("cancelling a pointer drag leaves the launcher usable without an accidental open", () => {
+  draggableGeometry(); render(shell());
+  const launcher = screen.getByRole("button", { name: "Open AI assistant" });
+  fireEvent.pointerDown(launcher, { pointerId: 1, button: 0, clientX: 900, clientY: 700 });
+  fireEvent.pointerMove(launcher, { pointerId: 1, clientX: 800, clientY: 600 });
+  fireEvent.pointerCancel(launcher, { pointerId: 1 });
+  fireEvent.click(launcher, { detail: 1 });
+  expect(screen.queryByRole("dialog", { name: "AI conversation" })).not.toBeInTheDocument();
+  expect(launcher.closest(".context-assistant")).not.toHaveAttribute("data-dragging");
+  fireEvent.click(launcher, { detail: 0 });
+  expect(screen.getByRole("dialog", { name: "AI conversation" })).toBeInTheDocument();
+});
 
 test.each([["dashboard", "What needs attention right now?"], ["alerts", "Summarise the alerts in this view."], ["system", "Summarise system health."], ["profile", "How do I verify my email?"], ["retention", "Explain the archive preview."], ["assistant", "How do I add a runbook?"]])("%s provides page-specific preset questions above the composer", async (page, question) => {
   apiMutation.mockResolvedValue(reply()); render(shell(page)); open();

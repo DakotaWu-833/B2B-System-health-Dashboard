@@ -17,7 +17,7 @@
   color: var(--ink); background: var(--page-bg);
 }
 *, *::before, *::after { box-sizing: border-box; }
-html { scroll-behavior: smooth; scroll-padding-top: 7rem; }
+html { scroll-behavior: smooth; scroll-padding-top: 7rem; scrollbar-gutter: stable; }
 body { margin: 0; min-width: 320px; line-height: 1.6; background: var(--page-bg); }
 button, input, textarea, select { font: inherit; }
 h1, h2, h3, h4, p { margin-top: 0; }
@@ -208,9 +208,11 @@ td { min-width: 6rem; }
 
 /* StudyCrew native dialogs: same entry/exit easing, backdrop and focus behavior. */
 .workspace-modal { width: min(70rem, calc(100vw - 2rem)); max-width: none; max-height: min(88dvh, 58rem); margin: auto; padding: 0; overflow: hidden; border: 1px solid rgb(216 227 218 / 90%); border-radius: var(--dialog-radius); color: var(--ink); background: white; box-shadow: 0 2rem 6rem rgb(26 43 34 / 26%); }
-.workspace-modal[open] { animation: floating-panel-enter 680ms cubic-bezier(.16, 1, .3, 1) both; }
+/* Keep the dialog untransformed so its AI portal stays fixed to the viewport. */
+.workspace-modal[open] > .modal-surface { animation: floating-panel-enter 680ms cubic-bezier(.16, 1, .3, 1) both; }
 .workspace-modal::backdrop { background: rgb(26 43 34 / 42%); backdrop-filter: blur(5px); animation: floating-backdrop-enter 560ms ease-out both; }
-.workspace-modal.is-closing { animation: floating-panel-exit 180ms ease-in both; pointer-events: none; }
+.workspace-modal.is-closing { pointer-events: none; }
+.workspace-modal.is-closing > .modal-surface { animation: floating-panel-exit 180ms ease-in both; }
 .workspace-modal.is-closing::backdrop { animation: floating-backdrop-exit 180ms ease-in both; }
 .modal-header { display: flex; min-height: 4rem; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.5rem; border-bottom: 1px solid #e2eae3; background: white; }
 .modal-header h2 { margin: 0; font-size: clamp(1.2rem, 3vw, 1.55rem); overflow-wrap: anywhere; }
@@ -529,6 +531,7 @@ td { min-width: 6rem; }
 .context-assistant { --chat-bottom: 22px; }
 .context-ai-launcher { position: fixed; z-index: 94; right: 24px; bottom: var(--chat-bottom); gap: .7rem; min-height: 58px; padding: .9rem 1.15rem; border: 1px solid #21695c; border-radius: 22px 22px 8px 22px; color: #fff; background: linear-gradient(135deg, #237b6d, #164e46); box-shadow: 0 9px 30px rgb(19 74 63 / 26%), 0 0 0 5px rgb(255 255 255 / 70%); font-size: .88rem; }
 .context-ai-launcher > .ui-icon { width: 25px; height: 25px; }
+.context-ai-launcher:hover:not(:disabled), .context-ai-launcher:active:not(:disabled) { transform: none; }
 .context-ai-launcher.is-open { min-height: 48px; border-radius: 30px; padding: .7rem 1rem; }
 .context-ai-launcher.is-open > .ui-icon { width: 18px; height: 18px; }
 .chat-launcher-dot { position: absolute; top: 3px; right: 3px; width: 10px; height: 10px; background: #b6e2bd; border: 2px solid white; border-radius: 50%; }
@@ -602,8 +605,7 @@ button.chat-scope-tag:hover:not(:disabled) { color: #234d31; background: #dce9d2
 .chat-action-error { margin: 0; padding: .6rem 1rem; color: #9c4337; background: #fff5ef; font-size: .75rem; }
 .ask-ai-inline { min-height: 25px; margin-top: .4rem; padding: .2rem .4rem; border: none; color: #487359; background: #edf4e7; border-radius: 6px; box-shadow: none; font-size: .67rem; font-weight: 650; }
 .ask-ai-inline:hover:not(:disabled) { color: #1f5839; background: #e1edd8; box-shadow: none; }
-.workspace-modal[open] { animation-fill-mode: backwards; }
-body:has(.resolution-toast) .context-assistant { --chat-bottom: 145px; }
+body:has(.resolution-toast) .context-chat { --chat-bottom: 145px; }
 @keyframes chat-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes chat-pulse { from { opacity: .35; } to { opacity: 1; } }
 @media (max-width: 480px) {
@@ -614,6 +616,6 @@ body:has(.resolution-toast) .context-assistant { --chat-bottom: 145px; }
   .context-chat-header { padding: .8rem; }.context-chat-header h2 { font-size: .9rem; }
   .context-chat-scope { padding: .6rem .8rem; }.chat-scope-tag:not(button) { display: none; }
   .context-chat-messages { padding: .85rem; }.context-chat-footer { padding: .7rem .8rem; }
-  body:has(.resolution-toast) .context-assistant { --chat-bottom: 190px; }
+  body:has(.resolution-toast) .context-chat { --chat-bottom: 190px; }
 }
 @media (prefers-reduced-motion: reduce) { .context-chat, .chat-thinking-dots i { animation: none; } }

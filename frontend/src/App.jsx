@@ -11,11 +11,11 @@ import useDeferredResolve from "./useDeferredResolve";
 import { apiFetch } from "./api";
 import { HeaderToolsProvider } from "./HeaderTools";
 import Icon from "./Icons";
-import AssistantPage from "./AssistantPage";
+import RunbookLibrary from "./RunbookLibrary";
 import AssistantProvider from "./AssistantContext";
 
-const pageNames = { dashboard: "Dashboard", system: "System", alerts: "Alert Center", assistant: "Operations assistant", profile: "My profile", retention: "Metric retention" };
-function routeFromHash() { const hash = window.location.hash.slice(1); return ({ "alert-center-title": "alerts", "metric-retention": "retention" })[hash] || (pageNames[hash] ? hash : "dashboard"); }
+const pageNames = { dashboard: "Dashboard", system: "System", alerts: "Alert Center", runbooks: "Runbook library", profile: "My profile", retention: "Metric retention" };
+function routeFromHash() { const hash = window.location.hash.slice(1); return ({ "alert-center-title": "alerts", "metric-retention": "retention", assistant: "runbooks" })[hash] || (pageNames[hash] ? hash : "dashboard"); }
 
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -144,7 +144,7 @@ function App() {
   if (authLoading) return <main className="startup-message" role="status"><span className="brand-symbol" aria-hidden="true"><Icon name="activity" /></span><span className="spinner" aria-hidden="true" /><p>Checking session...</p></main>;
   if (!currentUser) return <Login onLogin={user => { setLogoutError(""); setCurrentUser(user); setView("dashboard"); window.location.hash = "dashboard"; }} />;
 
-  return <AssistantProvider key={currentUser.username} page={view} currentUser={currentUser} onSessionExpired={handleSessionExpired} onAlertsChanged={() => setAlertVersion(value => value + 1)}><div className={`workspace-layout${collapsed ? " is-nav-collapsed" : ""}`}>
+  return <AssistantProvider key={currentUser.username} page={view === "runbooks" ? "assistant" : view} currentUser={currentUser} onSessionExpired={handleSessionExpired} onAlertsChanged={() => setAlertVersion(value => value + 1)}><div className={`workspace-layout${collapsed ? " is-nav-collapsed" : ""}`}>
     <a className="skip-link" href="#workspace-main" onClick={event => { event.preventDefault(); document.getElementById("workspace-main")?.focus(); }}>Skip to main content</a>
     <Sidebar view={view} currentUser={currentUser} onNavigate={navigate} onLogout={handleLogout} isLoggingOut={isLoggingOut}
       collapsed={collapsed} onToggleCollapse={() => setCollapsed(value => !value)} mobileOpen={mobileOpen} onCloseMobile={closeMobile} />
@@ -159,7 +159,7 @@ function App() {
         {view === "alerts" && <AlertsPage currentUser={currentUser} onSessionExpired={handleSessionExpired} refreshVersion={alertVersion}
           onAlertsChanged={()=>setAlertVersion(version=>version+1)} onResolveRequested={resolution.schedule} pendingResolution={resolution.pending} />}
         {view === "profile" && <Profile onSessionExpired={handleSessionExpired} />}
-        {view === "assistant" && <AssistantPage currentUser={currentUser} onSessionExpired={handleSessionExpired} onAlertsChanged={() => setAlertVersion(value => value + 1)} />}
+        {view === "runbooks" && <section aria-label="Runbook library workspace"><p className="section-description">Operating procedures used by Ask AI. {currentUser.role === "OPERATIONS" ? "Add, update and organise the knowledge behind its answers." : "Read the shared procedures available to your role."}</p><RunbookLibrary currentUser={currentUser} onSessionExpired={handleSessionExpired} /></section>}
         {view === "retention" && <MetricRetention currentUser={currentUser} onSessionExpired={handleSessionExpired} />}
       </main></HeaderToolsProvider>
     </div>

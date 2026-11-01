@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Icon from "./Icons";
 
-const mainEntries = [["dashboard", "Dashboard"], ["system", "System"], ["alerts", "Alert Center"], ["assistant", "Operations assistant"]];
+const mainEntries = [["dashboard", "Dashboard"], ["system", "System"], ["alerts", "Alert Center"], ["runbooks", "Runbook library"]];
 const accountEntries = [["profile", "My profile"], ["retention", "Metric retention"]];
 
 export default function Sidebar({ view, onNavigate, currentUser, onLogout, isLoggingOut, collapsed, onToggleCollapse, mobileOpen, onCloseMobile }) {

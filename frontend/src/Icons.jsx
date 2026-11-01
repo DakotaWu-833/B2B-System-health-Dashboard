@@ -1,4 +1,5 @@
 const paths = {
+  runbooks: "M3 4h6a4 4 0 0 1 3 1.5A4 4 0 0 1 15 4h6v16h-6a4 4 0 0 0-3 1.5A4 4 0 0 0 9 20H3z M12 5.5v16 M6 8h3 M6 12h3 M15 8h3 M15 12h3",
   assistant: "M12 3v3 M4 9h16v11H4z M1 12h3 M20 12h3 M8 13h.01 M16 13h.01 M8 17h8",
   dashboard: "M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z",
   system: "M3 3h18v7H3z M3 14h18v7H3z M7 6h1 M7 17h1 M12 6h5 M12 17h5",

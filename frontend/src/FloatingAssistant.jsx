@@ -4,7 +4,7 @@ import { apiMutation } from "./api";
 import { assistantRequest } from "./assistantRequest";
 import Icon from "./Icons";
 
-const pages = { dashboard: "Dashboard", system: "Systems", alerts: "Alert Center", profile: "My profile", retention: "Metric retention", assistant: "Knowledge workspace" };
+const pages = { dashboard: "Dashboard", system: "Systems", alerts: "Alert Center", profile: "My profile", retention: "Metric retention", assistant: "Runbook library" };
 const notices = {
   insufficient_evidence: "I don't have enough relevant evidence yet. Try a more specific question or add a related runbook.",
   retrieval_only: "Model responses are off. You can still review the current observations and matching runbooks below.",
@@ -147,7 +147,7 @@ export default function FloatingAssistant({ scope, launch, host, currentUser, on
       <header className="context-chat-header"><span className="context-chat-avatar"><Icon name="assistant" /></span><div><h2>Operations assistant</h2><p><span className="chat-presence" />Here to help with this page</p></div>
         <button type="button" className="chat-icon-button" aria-label="Close AI conversation" onClick={close}><Icon name="close" /></button>
       </header>
-      <div className="context-chat-scope"><Icon name={scope.page} /><span title={label}>{label}</span>{selectionActive ? <button type="button" className="chat-scope-tag" aria-label="Use page context" title="Ask about the whole page" disabled={confirming} onClick={onClearSelection}>Clear selection</button> : <span className="chat-scope-tag">Page context</span>}</div>
+      <div className="context-chat-scope"><Icon name={scope.page === "assistant" ? "runbooks" : scope.page} /><span title={label}>{label}</span>{selectionActive ? <button type="button" className="chat-scope-tag" aria-label="Use page context" title="Ask about the whole page" disabled={confirming} onClick={onClearSelection}>Clear selection</button> : <span className="chat-scope-tag">Page context</span>}</div>
       <div className="context-chat-messages" role="log" aria-label="AI conversation messages" aria-live="polite" aria-relevant="additions">
         <div className="chat-welcome"><span className="chat-welcome-icon"><Icon name="assistant" /></span><h3>A little help, right where you are.</h3><p>{scope.alertId ? "Ask about this alert, its measurements, or the next checks to make." : `Ask about ${pages[scope.page]?.toLowerCase() || "this page"}, or find a relevant operating procedure.`}</p></div>
         {messages.map(message => <article key={message.id} className={`chat-message chat-message--${message.role}${message.error ? " chat-message--error" : ""}`}>

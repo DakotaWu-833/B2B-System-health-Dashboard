@@ -2,14 +2,16 @@
 
 This extension connects the existing Spring Boot monitoring domain to Redis,
 versioned runbook retrieval and a bounded model-directed investigation agent.
-The React navigation includes **Operations assistant** with Runbook Q&A,
-Investigate a system and Runbook library views.
+AI questions and investigations use the **Ask AI** conversation available on
+every business page. The navigation has a dedicated **Runbook library** for
+document management; the duplicate Operations assistant page has been removed.
+`#runbooks` opens the library, and old `#assistant` bookmarks still reach it.
 
 ## Ask AI from any workspace page
 
 Every signed-in business page now has an **Ask AI** launcher at the lower right.
 It opens a compact conversation on the right without leaving the page. Dashboard,
-systems, alerts, profile, retention and the knowledge workspace each provide
+systems, alerts, profile, retention and the runbook library each provide
 their own preset questions **above the message input**. Clicking a preset sends
 that question immediately. Presets remain available after a response and change
 with the page or selected alert; they are not an empty-state-only feature.
@@ -133,8 +135,9 @@ has no GPU reservation; configure Ollama GPU access for your host if required.
    ```
 
 4. Set `AI_ENABLED=true`, then recreate the backend with the same Compose files.
-   Open the UI at `http://127.0.0.1:5619/#assistant`, sign in with the configured
-   demo account, add a runbook and investigate a system. Synthetic incident
+   Open the UI at `http://127.0.0.1:5619/#runbooks`, sign in with the configured
+   demo account and add a runbook. Open a system and use **Ask AI → Investigate**
+   to investigate it. Synthetic incident
    examples should be labelled as examples. Model calls can take tens of seconds.
 
 For a native backend use `REDIS_ENABLED=true`, `REDIS_HOST`, `REDIS_PORT`, optional
@@ -150,9 +153,10 @@ class loading. Frontend and backend must use matching versions. In the local
 verification environment, `5176` connects to the AI backend on `8086`; the
 separate `5173`/`8080` preview is the original course version.
 
-The assistant shows elapsed waiting time and a **Cancel request** button. Q&A
+The chat shows elapsed waiting time and a **Cancel** button. Q&A
 stops waiting after 55 seconds and investigation after 110 seconds, including
-CSRF and transport time. The question remains editable after timeout or cancel.
+CSRF and transport time. The conversation retains the question after timeout or
+cancel, and the input becomes available for another attempt.
 Cancellation closes the browser request; any server-side read/proposal analysis
 already running may finish. Alert mutation still requires separate confirmation.
 

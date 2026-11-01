@@ -485,38 +485,11 @@ td { min-width: 6rem; }
 }
 .assistant-tabs { display: flex; flex-wrap: wrap; gap: .6rem; margin-bottom: 1.4rem; }
 .assistant-tabs button { font-size: .82rem; }
-.assistant-layout { display: grid; grid-template-columns: minmax(260px, .85fr) minmax(0, 1.3fr); align-items: start; gap: 1.5rem; }
 .assistant-card { padding: 1.5rem; border: 1px solid var(--line); border-radius: 1rem; background: white; min-width: 0; }
 .assistant-card h3 { margin: 0 0 1rem; color: var(--heading); }
-.assistant-compose, .assistant-results { display: grid; gap: 1.1rem; min-width: 0; }
-.assistant-compose .editor-form { display: grid; grid-template-columns: 1fr; gap: 1rem; }
-.assistant-emblem { display: grid; place-items: center; width: 3.5rem; height: 3.5rem; border-radius: 1rem; background: #e6efe5; color: #35604c; }
-.assistant-emblem .ui-icon { width: 1.7rem; height: 1.7rem; }
-.assistant-note { display: flex; gap: .85rem; padding: .6rem; color: var(--ink-soft); font-size: .83rem; }
-.assistant-note .ui-icon { flex-shrink: 0; color: var(--accent); }
-.assistant-note strong { color: var(--heading); }
-.assistant-note p { margin: .35rem 0 0; line-height: 1.7; }
-.assistant-empty { padding: 4rem 2rem; text-align: center; border: 1px dashed var(--line); border-radius: 1rem; background: #f8faf6; color: var(--ink-soft); }
-.assistant-empty > .ui-icon { width: 2.4rem; height: 2.4rem; color: var(--accent); }
-.assistant-empty h3 { color: var(--heading); }
-.assistant-empty p { max-width: 27rem; margin: auto; font-size: .87rem; line-height: 1.8; }
-.assistant-status { padding: .8rem 1rem; border-radius: .6rem; background: #f2f5ec; color: #425138; font-size: .85rem; line-height: 1.7; }
 .assistant-answer { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .93rem; line-height: 1.9; }
-.assistant-sources, .assistant-trace { display: grid; gap: .75rem; }
-.assistant-sources details, .assistant-trace details { border: 1px solid var(--line); border-radius: .65rem; padding: .85rem; }
-.assistant-sources summary, .assistant-trace summary { cursor: pointer; font-size: .85rem; overflow-wrap: anywhere; }
-.assistant-sources summary span { display: block; margin-top: .4rem; color: var(--ink-soft); font-size: .73rem; }
-.assistant-sources blockquote { margin: 1rem 0; padding-left: 1rem; border-left: 3px solid #bfd1bd; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .84rem; line-height: 1.8; }
-.assistant-sources small { color: var(--ink-soft); }
-.assistant-trace pre { max-height: 22rem; overflow: auto; padding: .8rem; background: #f6f8f3; border-radius: .5rem; font-size: .75rem; }
-.assistant-step { display: inline-block; margin-right: .75rem; color: var(--accent); font-size: .75rem; font-weight: 750; }
-.assistant-proposal { display: grid; gap: .5rem; padding: 1rem 0; border-top: 1px solid var(--line); }
-.assistant-proposal p { font-size: .87rem; line-height: 1.7; margin: 0; }
-.assistant-proposal button { justify-self: start; margin-top: .5rem; }
-.assistant-proposal small { color: var(--ink-soft); }
 .assistant-confirm { margin-top: 1rem; padding: 1rem; background: #f6f5e9; border: 1px solid #d8d6b8; border-radius: .75rem; }
 .assistant-confirm .assistant-tabs { margin-bottom: 0; }
-.assistant-pagination { display: flex; align-items: center; gap: .6rem; font-size: .75rem; }
 .assistant-checkbox { display: flex !important; align-items: center; gap: .75rem; }
 .assistant-checkbox input { width: auto; }
 .runbook-layout { display: grid; grid-template-columns: minmax(230px, .7fr) minmax(0, 1.4fr); gap: 1.5rem; align-items: start; }
@@ -524,8 +497,8 @@ td { min-width: 6rem; }
 .runbook-list button { display: grid; gap: .5rem; width: 100%; text-align: left; white-space: normal; border: 1px solid var(--line); color: var(--heading); background: #f8faf6; box-shadow: none; }
 .runbook-list button[aria-pressed="true"] { border-color: var(--accent); background: #eaf1e6; }
 .runbook-list button span { color: var(--ink-soft); font-size: .73rem; font-weight: 450; }
-@media (max-width: 1000px) { .assistant-layout, .runbook-layout { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 480px) { .assistant-card { padding: 1rem; } .assistant-tabs button { flex: 1; padding: .65rem; } .assistant-empty { padding: 2rem 1rem; } }
+@media (max-width: 1000px) { .runbook-layout { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 480px) { .assistant-card { padding: 1rem; } .assistant-tabs button { flex: 1; padding: .65rem; } }
 
 /* A page-aware conversation, available without leaving the workspace. */
 .context-assistant { --chat-bottom: 22px; }

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import App from "../src/App";
 
@@ -7,6 +7,46 @@ afterEach(() => {
 });
 
 describe("App", () => {
+  test.each([["assistant", "OPERATIONS"], ["runbooks", "MANAGEMENT"]])("#%s opens the runbook library for %s and uses global chat for questions", async (hash, role) => {
+    window.history.replaceState(null, "", `#${hash}`);
+    const response = data => Promise.resolve({ ok: true, status: 200, json: async () => ({ success: true, data }) });
+    const fetch = vi.spyOn(globalThis, "fetch").mockImplementation((url, options = {}) => {
+      if (url === "/api/health") return response({ status: "UP" });
+      if (url === "/api/auth/me") return response({ username: "library.user", role });
+      if (url === "/api/knowledge/documents") return response([{ id: 3, title: "Shared procedure", version: 1, operationsOnly: false, chunkCount: 1 }]);
+      if (url === "/api/knowledge/documents/3") return response({ id: 3, title: "Shared procedure", version: 1, operationsOnly: false, content: "Review response times." });
+      if (url === "/api/auth/csrf") return response({ token: "test-csrf-token", headerName: "X-CSRF-TOKEN" });
+      if (url === "/api/assistant/chat" && options.method === "POST") return response({ status: "generated_with_sources", answer: "Runbooks supply the cited evidence.", contextLabel: "Runbook library", capturedAt: "2026-11-01T05:00:00Z", citations: [], observations: [], proposals: [] });
+      return Promise.reject(new Error(`Unexpected request: ${url}`));
+    });
+
+    render(<App />);
+    expect(await screen.findByRole("heading", { name: "Runbook library", level: 1 })).toBeInTheDocument();
+    const navigation = screen.getByRole("navigation", { name: "Primary navigation" });
+    expect(within(navigation).getByRole("link", { name: "Runbook library" })).toHaveAttribute("href", "#runbooks");
+    expect(within(navigation).queryByRole("link", { name: "Operations assistant" })).not.toBeInTheDocument();
+    const library = screen.getByRole("region", { name: "Runbook library workspace" });
+    expect(within(library).queryByRole("button", { name: "Runbook Q&A" })).not.toBeInTheDocument();
+    expect(within(library).queryByRole("button", { name: "Investigate a system" })).not.toBeInTheDocument();
+    expect(within(library).queryByLabelText("System scope")).not.toBeInTheDocument();
+    fireEvent.click(await within(library).findByRole("button", { name: /Shared procedure/ }));
+    if (role === "OPERATIONS") {
+      expect(await within(library).findByLabelText("Runbook content")).toHaveValue("Review response times.");
+      expect(within(library).getByRole("button", { name: "Save and index" })).toBeEnabled();
+    } else {
+      expect(await within(library).findByText("Review response times.")).toBeInTheDocument();
+      expect(within(library).queryByRole("button", { name: "Save and index" })).not.toBeInTheDocument();
+    }
+
+    fireEvent.click(screen.getByRole("button", { name: "Open AI assistant" }));
+    expect(screen.getByTitle("Runbook library")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "How do I add a runbook?" }));
+    expect(await screen.findByText("Runbooks supply the cited evidence.")).toBeInTheDocument();
+    const chat = fetch.mock.calls.find(([url]) => url === "/api/assistant/chat");
+    expect(JSON.parse(chat[1].body)).toEqual(expect.objectContaining({ question: "How do I add a runbook?", context: expect.objectContaining({ page: "assistant" }) }));
+    expect(fetch.mock.calls.some(([url]) => url === "/api/assistant/ask" || url === "/api/assistant/diagnose" || url.startsWith("/api/systems/"))).toBe(false);
+  });
+
   test("returns to sign in when the dashboard session has expired", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation((url) => {
       if (url === "/api/health") {

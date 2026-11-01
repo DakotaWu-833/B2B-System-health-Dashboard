@@ -37,6 +37,36 @@ test("minimising preserves the conversation and follow-up requests include bound
   expect(screen.getByRole("button", { name: "Explain the dashboard numbers." })).toBeEnabled();
 });
 
+test("a hanging chat times out, aborts and preserves the question in the conversation", async () => {
+  apiMutation.mockImplementation(() => new Promise(() => {}));
+  render(shell()); open(); vi.useFakeTimers(); message("How can we improve efficiency?");
+  await act(async () => { await vi.advanceTimersByTimeAsync(55000); });
+  expect(screen.getByText("The request timed out. Please try a more focused question.")).toBeInTheDocument();
+  expect(screen.getByText("How can we improve efficiency?")).toBeInTheDocument();
+  expect(screen.getByLabelText("Message the AI assistant")).toBeEnabled();
+  expect(apiMutation.mock.calls[0][3].signal.aborted).toBe(true);
+});
+
+test("cancelling chat permits retry and a late old response cannot replace the new answer", async () => {
+  let resolveOld;
+  apiMutation.mockImplementationOnce(() => new Promise(resolve => { resolveOld = resolve; })).mockResolvedValueOnce(reply("Current answer"));
+  render(shell()); open(); message("Old question");
+  fireEvent.click(screen.getByRole("button", { name: "Cancel", exact: true }));
+  expect(await screen.findByText("Request cancelled. Your conversation is saved.")).toBeInTheDocument();
+  expect(apiMutation.mock.calls[0][3].signal.aborted).toBe(true);
+  message("A more specific question");
+  expect(await screen.findByText("Current answer")).toBeInTheDocument();
+  await act(async () => resolveOld(reply("Obsolete answer")));
+  expect(screen.queryByText("Obsolete answer")).not.toBeInTheDocument();
+});
+
+test("an unauthorized chat expires the session", async () => {
+  const expired = vi.fn(); apiMutation.mockRejectedValue({ status: 401 });
+  render(<AssistantProvider page="assistant" currentUser={ops} onSessionExpired={expired}><p>Library</p></AssistantProvider>);
+  open(); message("How do I add a runbook?");
+  await waitFor(() => expect(expired).toHaveBeenCalledTimes(1));
+});
+
 test("navigation cancels the old request and late results cannot enter another page's conversation", async () => {
   let resolveOld; apiMutation.mockImplementation(() => new Promise(resolve => { resolveOld = resolve; }));
   const view = render(shell()); open(); message("Old dashboard question");

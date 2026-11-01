@@ -4,7 +4,7 @@ import { useState } from "react";
 import AssistantProvider from "../src/AssistantContext";
 import AlertCenter from "../src/AlertCenter";
 import Modal from "../src/Modal";
-import { apiFetch, apiMutation } from "../src/api";
+import { apiJson, apiMutation } from "../src/api";
 
 vi.mock("../src/api", () => ({ apiJson: vi.fn(), apiFetch: vi.fn(), apiMutation: vi.fn() }));
 afterEach(() => { vi.useRealTimers(); vi.resetAllMocks(); });
@@ -80,8 +80,8 @@ test("navigation cancels the old request and late results cannot enter another p
   view.rerender(shell()); expect(screen.getByText("Old dashboard question")).toBeInTheDocument();
 });
 
-test("Ask AI on an actual alert row binds the preset question to that alert", async () => {
-  apiFetch.mockResolvedValue({ ok: true, json: async () => ({ success: true, data: { items: [{ alertId: 42, systemId: 7, systemName: "Checkout API", alertType: "HIGH_CPU", message: "CPU warning", severity: "WARNING", status: "ACTIVE", createdTime: "2026-11-01T05:00:00Z" }], page: 0, totalPages: 1, totalElements: 1, first: true, last: true } }) });
+test("Ask AI on an actual board card binds the preset question to that alert", async () => {
+  apiJson.mockResolvedValue({ items: [{ alertId: 42, systemId: 7, systemName: "Checkout API", alertType: "HIGH_CPU", message: "CPU warning", severity: "WARNING", status: "ACTIVE", createdTime: "2026-11-01T05:00:00Z" }], page: 0, totalPages: 1, totalElements: 1, first: true, last: true });
   apiMutation.mockResolvedValue({ ...reply("Selected alert explanation"), freshnessNotice: "Current availability is unknown because measurements are outdated." });
   render(shell("alerts", ops, <AlertCenter currentUser={ops} />));
   fireEvent.click(await screen.findByRole("button", { name: "Ask AI about Checkout API alert 42" }));

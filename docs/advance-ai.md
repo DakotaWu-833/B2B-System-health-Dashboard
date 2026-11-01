@@ -28,8 +28,9 @@ and page workflows without requiring a matching runbook for every question.
 Snapshots use `T` references, and versioned runbooks use `D` references. Lists are
 bounded samples: dashboard active alerts up to eight, inventory/alert context up
 to ten, and metric context up to ten readings in the last seven days. Alert
-context carries system/status filters; free-text inventory/alert search and
-client-side sort/page position are not replicated in the snapshot.
+context covers all statuses on the alert board, or a selected alert/system;
+free-text inventory/alert search and client-side sort/scroll position are not
+replicated in the snapshot.
 
 Selected-system evidence separates **last reported health**, measurement
 freshness and **current availability**. Missing/outdated readings make current
@@ -53,6 +54,13 @@ the old browser request and late responses cannot enter the new conversation.
 The existing 55/110-second limits and cancellation apply to chat/investigation.
 The launcher also mounts inside native system dialogs so it remains operable
 there; Escape closes the conversation before closing the underlying dialog.
+
+Alert Center uses the same board structure as StudyCrew tasks: Active,
+Acknowledged and Resolved columns, counts in fixed column headings and separate
+vertically scrolling card lists. Narrow screens scroll the board horizontally.
+The System/Status filter dropdowns are removed; system-name search and ordering
+apply across the full collection, loaded through the existing 100-item API pages.
+Cards retain Ask AI, role-restricted actions and the deferred Resolve/Undo flow.
 
 ## What is implemented
 

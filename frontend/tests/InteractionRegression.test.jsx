@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import AlertCenter from "../src/AlertCenter";
 import Login from "../src/Login";
@@ -10,23 +10,21 @@ const response = data => ({ ok: true, status: 200, json: async () => ({ success:
 const page = (items, overrides = {}) => ({ items, page: 0, size: 5, totalElements: 6,
   totalPages: 2, first: true, last: false, ...overrides });
 
-test("regression: processing the last alert on the last page must return to a valid page", async () => {
+test("regression: processing a later-page alert retains cards from the full board", async () => {
   let updated = false;
   const fetch = vi.spyOn(globalThis, "fetch").mockImplementation((url, options) => {
     if (url === "/api/auth/csrf") return Promise.resolve(response({ token: "test" }));
     if (options.method === "PATCH") { updated = true; return Promise.resolve(response({ ...alert, status: "ACKNOWLEDGED" })); }
-    if (url.includes("page=1")) return Promise.resolve(response(page(updated ? [] : [alert], {
-      page: 1, first: false, last: true, totalElements: updated ? 5 : 6, totalPages: updated ? 1 : 2,
-    })));
-    return Promise.resolve(response(page([{ ...alert, alertId: 1, systemName: "Earlier-page API" }], updated ? { totalElements: 5, totalPages: 1, last: true } : {})));
+    if (url.includes("page=1")) return Promise.resolve(response(page([{ ...alert, status: updated ? "ACKNOWLEDGED" : "ACTIVE" }], { page: 1, first: false, last: true })));
+    return Promise.resolve(response(page([{ ...alert, alertId: 1, systemName: "Earlier-page API" }])));
   });
   render(<AlertCenter currentUser={{ role: "OPERATIONS" }} />);
-  fireEvent.click(await screen.findByRole("button", { name: "Next" }));
-  await screen.findByText("Last-page API");
-  fireEvent.click(screen.getByRole("button", { name: "Acknowledge" }));
+  const card = await screen.findByRole("article", { name: "Last-page API High Cpu alert #6" });
+  fireEvent.click(within(card).getByRole("button", { name: "Acknowledge" }));
   await screen.findByText("Last-page API alert acknowledged successfully.");
   await waitFor(() => expect(fetch.mock.calls.filter(([url]) => url.includes("/api/alerts?page=0"))).toHaveLength(2));
-  expect(screen.getByText("Earlier-page API")).toBeInTheDocument();
+  expect(await within(screen.getByRole("region", { name: "Acknowledged alerts" })).findByText("Last-page API")).toBeInTheDocument();
+  expect(within(screen.getByRole("region", { name: "Active alerts" })).getByText("Earlier-page API")).toBeInTheDocument();
 });
 
 test("regression: another alert action must not start while an update is pending", async () => {
@@ -35,27 +33,24 @@ test("regression: another alert action must not start while an update is pending
   render(<AlertCenter currentUser={{ role: "OPERATIONS" }} />);
   await screen.findByText("Last-page API");
   fireEvent.click(screen.getAllByRole("button", { name: "Acknowledge" })[0]);
-  expect(screen.getAllByRole("button", { name: "Acknowledge" })[1]).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Acknowledge" })).toBeDisabled();
 });
 
-test("regression: a late refresh response must not overwrite the selected filter", async () => {
+test("regression: a late refresh cannot overwrite a newer externally refreshed board", async () => {
   let completeOldRefresh;
-  let activeCalls = 0;
-  vi.spyOn(globalThis, "fetch").mockImplementation(url => {
-    if (!url.includes("status=") && ++activeCalls === 2) {
-      return new Promise(resolve => { completeOldRefresh = resolve; });
-    }
-    return Promise.resolve(response(page(url.includes("status=RESOLVED") ? [{ ...alert, status: "RESOLVED", systemName: "Resolved API" }] : [alert], {
-      totalElements: 1, totalPages: 1, last: true,
-    })));
+  let calls = 0;
+  const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(() => {
+    if (++calls === 2) return new Promise(resolve => { completeOldRefresh = resolve; });
+    return Promise.resolve(response(page(calls > 2 ? [{ ...alert, status: "RESOLVED", systemName: "Resolved API" }] : [alert], { totalElements: 1, totalPages: 1, last: true })));
   });
-  render(<AlertCenter currentUser={{ role: "MANAGEMENT" }} />);
+  const view = render(<AlertCenter currentUser={{ role: "MANAGEMENT" }} />);
   await screen.findByText("Last-page API");
   fireEvent.click(screen.getByRole("button", { name: "Refresh alerts" }));
-  fireEvent.change(screen.getByLabelText("Status"), { target: { value: "RESOLVED" } });
+  view.rerender(<AlertCenter currentUser={{ role: "MANAGEMENT" }} refreshVersion={1} />);
   await screen.findByText("Resolved API");
+  expect(fetch.mock.calls[1][1].signal.aborted).toBe(true);
   await act(async () => completeOldRefresh(response(page([alert], { totalElements: 1, totalPages: 1, last: true }))));
-  expect(screen.getByLabelText("Status")).toHaveValue("RESOLVED");
+  expect(within(screen.getByRole("region", { name: "Resolved alerts" })).getByText("Resolved API")).toBeInTheDocument();
   expect(screen.queryByText("Last-page API")).not.toBeInTheDocument();
 });
 
@@ -85,45 +80,42 @@ test("login submission is disabled while pending and unlocked after failure", as
   expect(fetch).toHaveBeenCalledTimes(2);
 });
 
-test("a stale response body cannot replace a newer filter after JSON parsing", async () => {
+test("a stale response body cannot replace a newer board after JSON parsing", async () => {
   let finishOldJson;
-  let activeCalls = 0;
-  vi.spyOn(globalThis, "fetch").mockImplementation(url => {
-    if (!url.includes("status=") && ++activeCalls === 2) return Promise.resolve({
-      ok: true, status: 200, json: () => new Promise(resolve => { finishOldJson = resolve; }),
-    });
-    return Promise.resolve(response(page(url.includes("status=RESOLVED") ?
-      [{ ...alert, status: "RESOLVED", systemName: "New filtered API" }] : [alert], { totalPages: 1, last: true })));
+  let calls = 0;
+  vi.spyOn(globalThis, "fetch").mockImplementation(() => {
+    if (++calls === 2) return Promise.resolve({ ok: true, status: 200, json: () => new Promise(resolve => { finishOldJson = resolve; }) });
+    return Promise.resolve(response(page(calls > 2 ? [{ ...alert, status: "RESOLVED", systemName: "New results API" }] : [alert], { totalPages: 1, last: true })));
   });
-  render(<AlertCenter currentUser={{ role: "MANAGEMENT" }} />);
+  const view = render(<AlertCenter currentUser={{ role: "MANAGEMENT" }} />);
   await screen.findByText("Last-page API");
   fireEvent.click(screen.getByRole("button", { name: "Refresh alerts" }));
   await waitFor(() => expect(finishOldJson).toBeTypeOf("function"));
-  fireEvent.change(screen.getByLabelText("Status"), { target: { value: "RESOLVED" } });
-  await screen.findByText("New filtered API");
+  view.rerender(<AlertCenter currentUser={{ role: "MANAGEMENT" }} refreshVersion={1} />);
+  await screen.findByText("New results API");
   await act(async () => finishOldJson({ success: true, data: page([alert]) }));
-  expect(screen.getByText("New filtered API")).toBeInTheDocument();
+  expect(screen.getByText("New results API")).toBeInTheDocument();
   expect(screen.queryByText("Last-page API")).not.toBeInTheDocument();
 });
 
-test("superseded 401 responses do not expire a newer successful session", async () => {
+test("superseded 401 responses do not expire a newer successful board session", async () => {
   let completeOld;
-  let activeCalls = 0;
+  let calls = 0;
   const onSessionExpired = vi.fn();
-  vi.spyOn(globalThis, "fetch").mockImplementation(url => {
-    if (!url.includes("status=") && ++activeCalls === 2) return new Promise(resolve => { completeOld = resolve; });
+  vi.spyOn(globalThis, "fetch").mockImplementation(() => {
+    if (++calls === 2) return new Promise(resolve => { completeOld = resolve; });
     return Promise.resolve(response(page([alert], { totalPages: 1, last: true })));
   });
-  render(<AlertCenter currentUser={{ role: "MANAGEMENT" }} onSessionExpired={onSessionExpired} />);
+  const view = render(<AlertCenter currentUser={{ role: "MANAGEMENT" }} onSessionExpired={onSessionExpired} />);
   await screen.findByText("Last-page API");
   fireEvent.click(screen.getByRole("button", { name: "Refresh alerts" }));
-  fireEvent.change(screen.getByLabelText("Status"), { target: { value: "ACTIVE" } });
-  await screen.findByText("Last-page API");
-  await act(async () => completeOld({ ok: false, status: 401 }));
+  view.rerender(<AlertCenter currentUser={{ role: "MANAGEMENT" }} onSessionExpired={onSessionExpired} refreshVersion={1} />);
+  await waitFor(() => expect(screen.getByRole("button", { name: "Refresh alerts" })).toBeEnabled());
+  await act(async () => completeOld({ ok: false, status: 401, json: async () => ({ success: false, message: "Authentication required" }) }));
   expect(onSessionExpired).not.toHaveBeenCalled();
 });
 
-test("a failed mutation unlocks filters and allows refresh and retry", async () => {
+test("a failed mutation preserves sorting and allows refresh and retry", async () => {
   vi.spyOn(console, "error").mockImplementation(() => {});
   vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(response(page([alert], { totalPages: 1, last: true })))
     .mockResolvedValueOnce(response({ token: "test" }))
@@ -132,7 +124,7 @@ test("a failed mutation unlocks filters and allows refresh and retry", async () 
   render(<AlertCenter currentUser={{ role: "OPERATIONS" }} />);
   fireEvent.click(await screen.findByRole("button", { name: "Acknowledge" }));
   await screen.findByText("Access denied");
-  expect(screen.getByLabelText("Status")).toBeEnabled();
+  expect(screen.getByLabelText("Sort alerts")).toBeEnabled();
   fireEvent.click(screen.getByRole("button", { name: "Refresh alerts" }));
   expect(await screen.findByRole("button", { name: "Acknowledge" })).toBeEnabled();
 });

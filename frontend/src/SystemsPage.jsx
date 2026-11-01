@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiJson } from "./api";
-import { formatMetric, formatTime } from "./metricDisplay";
+import { formatMetric, formatTime, systemHealthDisplay } from "./metricDisplay";
 import Modal from "./Modal";
 import SystemDetails from "./SystemDetails";
 import SystemForm from "./SystemForm";
@@ -64,9 +64,9 @@ export default function SystemsPage({ currentUser, onSessionExpired }) {
     {error && <p role="alert" className="error-message">{error}</p>}
     {loading ? <p role="status">Loading systems…</p> : !error && <>
       {!page.items.length && <p className="empty-state">{keyword ? `No systems match “${keyword}”.` : "No monitored systems are available yet."}</p>}
-      <div className="system-card-grid">{page.items.map(system => <article className="system-card" key={system.id}>
-        <button className="system-card-open" onClick={() => setSelected(system)} aria-label={`${system.name} ${system.type} ${system.host} ${system.status}`}>
-          <div className="system-card-top"><span className="system-type">{system.type}</span><span className={`system-status status-${system.status.toLowerCase()}`}>{system.status}</span></div>
+      <div className="system-card-grid">{page.items.map(system => { const health = systemHealthDisplay(system); return <article className="system-card" key={system.id}>
+        <button className="system-card-open" onClick={() => setSelected(system)} aria-label={`${system.name} ${system.type} ${system.host} ${health.label}`}>
+          <div className="system-card-top"><span className="system-type">{system.type}</span><span className={`system-status ${health.className}`}>{health.label}</span></div>
           <h3>{system.name}</h3><p className="system-host">{system.host}</p>
           <dl className="card-metrics">{[["CPU",system.latestMetric?.cpuUsage,"%"],["Memory",system.latestMetric?.memoryUsage,"%"],["Response",system.latestMetric?.responseTime," ms"]].map(([name,value,unit])=>
             <div key={name}><dt>{name}</dt><dd>{formatMetric(value,unit)}</dd></div>)}</dl>
@@ -74,7 +74,7 @@ export default function SystemsPage({ currentUser, onSessionExpired }) {
           {system.latestMetric?.availability === false && <span className="cell-detail">Unavailable</span>}
         </button>
         <footer><span>View details <span aria-hidden="true">↗</span></span><div className="row-actions">{assistant && <button type="button" className="ask-ai-inline" aria-label={`Ask AI about ${system.name}`} onClick={() => assistant.ask({ systemId: system.id, systemName: system.name }, "Explain this system's health and suggest what to check next.")}>Ask AI ↗</button>}{allowed && <button className="button-secondary button-small" aria-label={`Edit ${system.name}`} onClick={() => setForm({ system })}>Edit</button>}</div></footer>
-      </article>)}</div>
+      </article>; })}</div>
       {page.totalPages > 0 && <nav className="pagination" aria-label="System pages"><button className="button-secondary" disabled={page.first} onClick={() => load(page.page-1)}>Previous page</button>
         <span>Page {page.page+1} of {page.totalPages} · {page.totalElements} systems</span><button className="button-secondary" disabled={page.last} onClick={() => load(page.page+1)}>Next page</button></nav>}
     </>}

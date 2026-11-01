@@ -47,7 +47,7 @@ test("editing preserves the existing description and sends PUT for the selected 
     body: expect.stringContaining('"description":"Existing context"') }));
 });
 
-test("a manual reading refreshes system cards and subsequent overview and filtered alert views", async () => {
+test("a manual reading refreshes system cards and subsequent overview and alert board", async () => {
   let submitted = false;
   const fetch = vi.spyOn(globalThis, "fetch").mockImplementation((url, options = {}) => {
     if (url === "/api/auth/me") return Promise.resolve(reply({ username: "review.ops", role: "OPERATIONS" }));
@@ -66,8 +66,9 @@ test("a manual reading refreshes system cards and subsequent overview and filter
   render(<App />);
   fireEvent.click(await screen.findByRole("link", { name: "System" }));
   await waitFor(() => expect(window.location.hash).toBe("#system"));
-  fireEvent.click(await screen.findByRole("button", { name: /Review API SERVICE/ }));
+  fireEvent.click(await screen.findByRole("button", { name: /Review API SERVICE.*No data/ }));
   await screen.findByText("Health thresholds:");
+  expect(screen.getByText("No data", { selector: ".detail-card-header .system-status" })).toHaveClass("status-no-data");
   fireEvent.click(screen.getByRole("tab", { name: "Submit a metric reading" }));
   for (const [label, value] of [["CPU usage (%)", "90"], ["Memory usage (%)", "10"], ["Response time (ms)", "100"]]) {
     fireEvent.change(await screen.findByLabelText(label), { target: { value } });
@@ -83,11 +84,10 @@ test("a manual reading refreshes system cards and subsequent overview and filter
   fireEvent.click(screen.getByRole("link", { name: "Alert Center" }));
   await waitFor(() => expect(window.location.hash).toBe("#alerts"));
   await screen.findByText("CPU warning");
-  fireEvent.change(screen.getByRole("combobox", { name: "System" }), { target: { value: "1" } });
-  await waitFor(() => expect(screen.getByRole("combobox", { name: "System" })).toHaveValue("1"));
-  expect(screen.getByLabelText("Status")).toHaveValue("ALL");
+  expect(screen.getByRole("region", { name: "Active alerts" })).toHaveTextContent("CPU warning");
+  expect(screen.queryByRole("combobox", { name: "System" })).not.toBeInTheDocument();
   expect(fetch.mock.calls.filter(([, options]) => options.method === "POST")).toHaveLength(1);
-  expect(fetch.mock.calls.some(([url]) => url === "/api/alerts?page=0&size=5&systemId=1")).toBe(true);
+  expect(fetch.mock.calls.some(([url]) => url === "/api/alerts?page=0&size=100")).toBe(true);
 });
 
 test("Management can inspect details but cannot see system or metric write controls", async () => {
@@ -103,19 +103,18 @@ test("Management can inspect details but cannot see system or metric write contr
   expect(screen.getByRole("tab", { name: "Submit a metric reading" })).toBeDisabled();
 });
 
-test("the alert system filter loads additional systems with bounded requests", async () => {
-  const other = { ...system, id: 101, name: "Other page API" };
-  const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(url => Promise.resolve(reply(
-    url.startsWith("/api/systems/page?page=1") ? page([other], { page: 1, size: 100, first: false, totalPages: 2, totalElements: 101 }) :
-    url.startsWith("/api/systems/page") ? page([system], { size: 100, totalPages: 2, totalElements: 101, last: false }) : page([]))));
+test("the alert board loads directly without fetching unused system options", async () => {
+  const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(url => {
+    if (!url.startsWith("/api/alerts?")) throw new Error(`Unexpected request: ${url}`);
+    return Promise.resolve(reply(page([])));
+  });
   render(<AlertsPage currentUser={{ role: "MANAGEMENT" }} />);
-  fireEvent.click(await screen.findByRole("button", { name: "Load more filter systems" }));
-  await screen.findByRole("option", { name: "Other page API" });
-  fireEvent.change(screen.getByRole("combobox", { name: "System" }), { target: { value: "101" } });
-  await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/alerts?page=0&size=5&systemId=101", expect.anything()));
-  expect(fetch).toHaveBeenCalledWith("/api/systems/page?page=1&size=100", expect.anything());
-  expect(screen.queryByRole("button", { name: /Other page API SERVICE/ })).not.toBeInTheDocument();
-  expect(fetch.mock.calls.some(([url]) => url === "/api/systems")).toBe(false);
+  expect(await screen.findByRole("heading", { name: "Resolved", level: 3 })).toBeInTheDocument();
+  await waitFor(() => expect(screen.getByRole("button", { name: "Refresh alerts" })).toBeEnabled());
+  expect(screen.queryByRole("combobox", { name: "System" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Load more filter systems" })).not.toBeInTheDocument();
+  expect(fetch).toHaveBeenCalledTimes(1);
+  expect(fetch).toHaveBeenCalledWith("/api/alerts?page=0&size=100", expect.anything());
 });
 
 test("profile navigation retains visible logout failure and allows a successful retry", async () => {

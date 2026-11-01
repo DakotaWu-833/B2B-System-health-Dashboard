@@ -1,386 +1,133 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { apiFetch } from "./api";
-import { collectionPage, nameIncludes, orderAlerts, readCollection } from "./collectionQuery";
+import { apiMutation } from "./api";
+import { nameIncludes, orderAlerts, readCollection } from "./collectionQuery";
 import HeaderTools from "./HeaderTools";
+import Icon from "./Icons";
 import { useAssistant } from "./AssistantContext";
 
-const PAGE_SIZE = 5;
-const STATUS_OPTIONS = ["ALL", "ACTIVE", "ACKNOWLEDGED", "RESOLVED"];
+const COLUMNS = [
+  { status: "ACTIVE", label: "Active", description: "Waiting for an operator to take ownership." },
+  { status: "ACKNOWLEDGED", label: "Acknowledged", description: "Owned and under investigation." },
+  { status: "RESOLVED", label: "Resolved", description: "Closed incidents kept for reference." },
+];
+const formatLabel = value => value.toLowerCase().split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
 
-function formatLabel(value) {
-  return value
-    .toLowerCase()
-    .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}
-
-function emptyPage() {
-  return {
-    items: [],
-    page: 0,
-    size: PAGE_SIZE,
-    totalElements: 0,
-    totalPages: 0,
-    first: true,
-    last: true,
-  };
-}
-
-function AlertCenter({ currentUser, onSessionExpired, onAlertsChanged, systems = [], refreshVersion = 0,
-  onLoadMoreSystems, hasMoreSystems = false, systemsLoading = false, systemsError = "", onResolveRequested, pendingResolution }) {
-  const [statusFilter, setStatusFilter] = useState("ALL");
-  const [systemFilter, setSystemFilter] = useState("");
+export default function AlertCenter({ currentUser, onSessionExpired, onAlertsChanged, refreshVersion = 0,
+  onResolveRequested, pendingResolution }) {
+  const [alerts, setAlerts] = useState([]);
   const [searchInput, setSearchInput] = useState("");
   const [keyword, setKeyword] = useState("");
-  const [sort, setSort] = useState({ field: null, direction: null, custom: false });
-  const collection = useRef(null);
-  const lastRefreshVersion = useRef(refreshVersion);
-  const [alertPage, setAlertPage] = useState(emptyPage);
+  const [sort, setSort] = useState("newest");
   const [isLoading, setIsLoading] = useState(true);
+  const [loaded, setLoaded] = useState(false);
   const [actionAlertId, setActionAlertId] = useState(null);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
   const latestRequest = useRef(0);
   const requestController = useRef(null);
   const updateInProgress = useRef(false);
-
+  const mounted = useRef(false);
   const canManageAlerts = currentUser?.role === "OPERATIONS";
   const assistant = useAssistant();
   const setAssistantScope = assistant?.setScope;
-  const selectedSystemName = systems.find(system => String(system.id) === systemFilter)?.name;
-  useEffect(() => { setAssistantScope?.({ systemId: systemFilter ? Number(systemFilter) : null, systemName: selectedSystemName, status: statusFilter }); }, [setAssistantScope, systemFilter, selectedSystemName, statusFilter]);
+  useEffect(() => { setAssistantScope?.({ status: "ALL" }); }, [setAssistantScope]);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 
-  const loadAlerts = useCallback(
-    async (requestedPage = 0) => {
-      const requestId = ++latestRequest.current;
-      requestController.current?.abort();
-      const controller = new AbortController();
-      requestController.current = controller;
-      const isCurrent = () => requestId === latestRequest.current && !controller.signal.aborted;
-      setIsLoading(true);
-      setError("");
-
-      try {
-        if (keyword || sort.custom) {
-          const key = JSON.stringify([statusFilter, systemFilter]);
-          const parameters = {};
-          if (statusFilter !== "ALL") parameters.status = statusFilter;
-          if (systemFilter) parameters.systemId = systemFilter;
-          const items = collection.current?.key === key ? collection.current.items : await readCollection("/api/alerts", { signal: controller.signal, parameters, idKey: "alertId" });
-          if (!isCurrent()) return;
-          collection.current = { key, items };
-          const matches = items.filter(alert => nameIncludes(alert.systemName, keyword));
-          setAlertPage(collectionPage(sort.custom ? orderAlerts(matches, sort.field, sort.direction) : matches, requestedPage, PAGE_SIZE));
-          return;
-        }
-        let pageToLoad = Math.max(0, requestedPage);
-        while (isCurrent()) {
-          const query = new URLSearchParams({ page: String(pageToLoad), size: String(PAGE_SIZE) });
-          if (statusFilter !== "ALL") query.set("status", statusFilter);
-          if (systemFilter) query.set("systemId", systemFilter);
-          const response = await apiFetch(`/api/alerts?${query}`, { signal: controller.signal });
-          if (!isCurrent()) return;
-          if (response.status === 401) {
-            onSessionExpired?.();
-            return;
-          }
-          const result = await response.json();
-          if (!isCurrent()) return;
-          if (!response.ok || !result.success) {
-            throw new Error(result.message || "Failed to load alerts.");
-          }
-          const lastPage = Math.max(0, result.data.totalPages - 1);
-          if (pageToLoad > lastPage) {
-            pageToLoad = lastPage;
-            continue;
-          }
-          setAlertPage(result.data);
-          return;
-        }
-      } catch (requestError) {
-        if (isCurrent() && requestError.name !== "AbortError") {
-          console.error("Failed to load alerts:", requestError);
-          setError("Unable to load alerts. Please try again.");
-        }
-      } finally {
-        if (isCurrent()) {
-          setIsLoading(false);
-        }
-      }
-    },
-    [onSessionExpired, statusFilter, systemFilter, keyword, sort]
-  );
+  const loadAlerts = useCallback(async () => {
+    const requestId = ++latestRequest.current;
+    requestController.current?.abort();
+    const controller = new AbortController();
+    requestController.current = controller;
+    const isCurrent = () => requestId === latestRequest.current && !controller.signal.aborted;
+    setIsLoading(true); setError("");
+    try {
+      // Read every bounded API page so columns and search cover the complete collection.
+      const items = await readCollection("/api/alerts", { signal: controller.signal, idKey: "alertId" });
+      if (isCurrent()) { setAlerts(items); setLoaded(true); }
+    } catch (failure) {
+      if (!isCurrent() || failure.name === "AbortError") return;
+      if (failure.status === 401) onSessionExpired?.();
+      else setError("Unable to load alerts. Please try again.");
+    } finally { if (isCurrent()) setIsLoading(false); }
+  }, [onSessionExpired]);
 
   useEffect(() => {
-    if (lastRefreshVersion.current !== refreshVersion) {
-      collection.current = null;
-      lastRefreshVersion.current = refreshVersion;
-    }
-    loadAlerts(0);
-    return () => {
-      latestRequest.current += 1;
-      requestController.current?.abort();
-    };
+    loadAlerts();
+    return () => { latestRequest.current += 1; requestController.current?.abort(); };
   }, [loadAlerts, refreshVersion]);
 
-  useEffect(() => { setFeedback(""); }, [statusFilter, systemFilter, keyword]);
-
-  function toggleSort(field) {
-    setSort(current => current.field === field && current.direction === "desc"
-      ? { field: null, direction: null, custom: false }
-      : { field, direction: current.field === field && current.direction === "asc" ? "desc" : "asc", custom: true });
-  }
-
   async function updateAlert(alert, action) {
-    if (updateInProgress.current) return;
-    updateInProgress.current = true;
-    setActionAlertId(alert.alertId);
-    setError("");
-    setFeedback("");
-
+    if (updateInProgress.current || isLoading || pendingResolution) return;
+    updateInProgress.current = true; setActionAlertId(alert.alertId); setError(""); setFeedback("");
     try {
-      const csrfResponse = await apiFetch("/api/auth/csrf");
-      if (csrfResponse.status === 401) {
-        onSessionExpired?.();
-        return;
-      }
-
-      const csrfResult = await csrfResponse.json();
-      if (!csrfResponse.ok || !csrfResult.success) {
-        throw new Error(csrfResult.message || "Failed to obtain a CSRF token.");
-      }
-
-      const response = await apiFetch(
-        `/api/alerts/${alert.alertId}/${action}`,
-        {
-          method: "PATCH",
-          headers: {
-            [csrfResult.data.headerName || "X-CSRF-TOKEN"]:
-              csrfResult.data.token,
-          },
-        }
-      );
-
-      if (response.status === 401) {
-        onSessionExpired?.();
-        return;
-      }
-
-      const result = await response.json();
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || `Failed to ${action} alert.`);
-      }
-
-      setFeedback(
-        `${alert.systemName} alert ${
-          action === "acknowledge" ? "acknowledged" : "resolved"
-        } successfully.`
-      );
-      collection.current = null;
-      await loadAlerts(alertPage.page);
-      await onAlertsChanged?.();
-    } catch (requestError) {
-      console.error(`Failed to ${action} alert:`, requestError);
-      setError(requestError.message || `Unable to ${action} alert.`);
-    } finally {
-      updateInProgress.current = false;
-      setActionAlertId(null);
-    }
+      await apiMutation(`/api/alerts/${alert.alertId}/${action}`, "PATCH");
+      if (!mounted.current) return;
+      setFeedback(`${alert.systemName} alert ${action === "acknowledge" ? "acknowledged" : "resolved"} successfully.`);
+      await loadAlerts();
+      if (mounted.current) await onAlertsChanged?.();
+    } catch (failure) {
+      if (!mounted.current) return;
+      if (failure.status === 401) onSessionExpired?.();
+      else setError(failure.message || `Unable to ${action} alert.`);
+    } finally { updateInProgress.current = false; if (mounted.current) setActionAlertId(null); }
   }
 
-  return (
-    <section className="alert-center" aria-labelledby="alert-center-title">
-      <div className="section-header">
-        <div>
-          <h2 id="alert-center-title">Alert Center</h2>
-          <p className="section-copy">
-            Review operational incidents and move them through a controlled
-            response workflow.
-          </p>
-        </div>
+  const matches = alerts.filter(alert => nameIncludes(alert.systemName, keyword));
+  const ordered = orderAlerts(matches, sort.startsWith("system") ? "systemName" : "createdTime", sort === "oldest" || sort === "system-asc" ? "asc" : "desc");
+  const actionInProgress = isLoading || Boolean(error) || actionAlertId !== null || Boolean(pendingResolution);
 
-        <div className="alert-controls">
-          <label htmlFor="alert-system">System</label>
-          <select id="alert-system" value={systemFilter} disabled={actionAlertId !== null}
-            onChange={(event) => setSystemFilter(event.target.value)}>
-            <option value="">All systems</option>
-            {systems.map((system) => <option key={system.id} value={system.id}>{system.name}</option>)}
-          </select>
-          {hasMoreSystems && <button type="button" className="button-secondary button-small"
-            disabled={systemsLoading || actionAlertId !== null} onClick={onLoadMoreSystems}>
-            {systemsLoading ? "Loading systems…" : "Load more filter systems"}
-          </button>}
-          <label htmlFor="alert-status">Status</label>
-          <select
-            id="alert-status"
-            value={statusFilter}
-            disabled={actionAlertId !== null}
-            onChange={(event) => setStatusFilter(event.target.value)}
-          >
-            {STATUS_OPTIONS.map((status) => (
-              <option key={status} value={status}>
-                {formatLabel(status)}
-              </option>
-            ))}
-          </select>
-          <button
-            className="button-secondary"
-            type="button"
-            onClick={() => { collection.current = null; loadAlerts(alertPage.page); }}
-            disabled={isLoading || actionAlertId !== null}
-          >
-            {isLoading ? "Refreshing…" : "Refresh alerts"}
-          </button>
-        </div>
+  return <section className="alert-center alert-center--board" aria-labelledby="alert-center-title">
+    <div className="section-header alert-board-heading">
+      <div><p className="section-kicker">INCIDENT WORKFLOW</p><h2 id="alert-center-title">Alert Center</h2>
+        <p className="section-copy">Follow each incident from first report to resolution.</p></div>
+      <div className="alert-controls">
+        <label className="alert-sort">Sort alerts<select value={sort} onChange={event => setSort(event.target.value)}>
+          <option value="newest">Newest first</option><option value="oldest">Oldest first</option>
+          <option value="system-asc">System name A–Z</option><option value="system-desc">System name Z–A</option>
+        </select></label>
+        <button type="button" className="button-secondary" disabled={isLoading || actionAlertId !== null} onClick={loadAlerts}><Icon name="refresh" />{isLoading ? "Refreshing…" : "Refresh alerts"}</button>
       </div>
+    </div>
 
-      <HeaderTools><form className="collection-search" role="search" aria-label="Alert search" onSubmit={event => { event.preventDefault(); const next = searchInput.trim(); if (next === keyword) loadAlerts(0); else setKeyword(next); }}>
-        <label htmlFor="alert-name-search">Search alerts by system name</label>
-        <div><input id="alert-name-search" type="search" placeholder="Enter part of a system name" value={searchInput} disabled={actionAlertId !== null} onChange={event => setSearchInput(event.target.value)} />
-          <button type="submit" className="button-secondary" disabled={actionAlertId !== null}>Search alerts</button>
-          {(keyword || searchInput) && <button type="button" className="button-secondary" disabled={actionAlertId !== null} onClick={() => { setSearchInput(""); setKeyword(""); }}>Clear search</button>}</div>
-        {keyword && <p className="section-copy">Showing names containing “{keyword}” across all alerts matching the selected filters.</p>}
-      </form></HeaderTools>
+    <HeaderTools><form className="collection-search" role="search" aria-label="Alert search" onSubmit={event => { event.preventDefault(); setKeyword(searchInput.trim()); setFeedback(""); }}>
+      <label htmlFor="alert-name-search">Search alerts by system name</label>
+      <div><input id="alert-name-search" type="search" placeholder="Enter part of a system name" value={searchInput} onChange={event => setSearchInput(event.target.value)} />
+        <button type="submit" className="button-secondary">Search alerts</button>
+        {(keyword || searchInput) && <button type="button" className="button-secondary" onClick={() => { setSearchInput(""); setKeyword(""); setFeedback(""); }}>Clear search</button>}</div>
+    </form></HeaderTools>
 
-      {!canManageAlerts && (
-        <p className="permission-note">
-          Management access is read-only. Operations users can acknowledge and
-          resolve alerts.
-        </p>
-      )}
-      {systemsError && <p className="error-message" role="alert">{systemsError}</p>}
+    {!canManageAlerts && <p className="permission-note">Management access is read-only. Operations users can acknowledge and resolve alerts.</p>}
+    {feedback && <p className="success-message" role="status">{feedback}</p>}
+    {error && <p className="error-message" role="alert">{error}</p>}
+    <div className="alert-board-summary"><p role="status" aria-live="polite">{isLoading ? loaded ? "Updating alerts…" : "Loading alerts…" : error ? "Refresh to get the latest alerts." : `${matches.length} ${matches.length === 1 ? "alert" : "alerts"}${keyword ? ` matching “${keyword}”` : " across all systems"}`}</p>
+      <span><Icon name="activity" />Scroll within a column to review its alerts</span></div>
 
-      {feedback && (
-        <p className="success-message" role="status" aria-live="polite">
-          {feedback}
-        </p>
-      )}
-
-      {error && (
-        <p className="error-message alert-message" role="alert">
-          {error}
-        </p>
-      )}
-
-      {isLoading && <p aria-live="polite">Loading alerts...</p>}
-
-      {!isLoading && !error && alertPage.items.length === 0 && (
-        <p className="empty-state" role="status">
-          {keyword ? `No alerts match “${keyword}” with the selected filters.` : `No ${statusFilter === "ALL" ? "" : formatLabel(statusFilter).toLowerCase() + " "}alerts are available.`}
-        </p>
-      )}
-
-      {!isLoading && !error && alertPage.items.length > 0 && (
-        <>
-          <div className="table-wrapper">
-            <table>
-              <caption className="visually-hidden">
-                {formatLabel(statusFilter)} system alerts
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col" aria-sort={sort.field === "systemName" ? sort.direction === "asc" ? "ascending" : "descending" : "none"}>
-                    <button type="button" className="sort-column" disabled={actionAlertId !== null} onClick={() => toggleSort("systemName")} title={sort.field === "systemName" && sort.direction === "desc" ? "Clear system name sorting" : "Sort by system name"}>System <span aria-hidden="true">{sort.field === "systemName" ? sort.direction === "asc" ? "↑" : "↓" : ""}</span></button>
-                  </th>
-                  <th scope="col">Alert</th>
-                  <th scope="col">Severity</th>
-                  <th scope="col">Status</th>
-                  <th scope="col" aria-sort={sort.field === "createdTime" ? sort.direction === "asc" ? "ascending" : "descending" : "none"}>
-                    <button type="button" className="sort-column" disabled={actionAlertId !== null} onClick={() => toggleSort("createdTime")} title={sort.field === "createdTime" && sort.direction === "desc" ? "Clear alert time sorting" : "Sort by alert creation time"}>Alert time <span aria-hidden="true">{sort.field === "createdTime" ? sort.direction === "asc" ? "↑" : "↓" : ""}</span></button>
-                  </th>
-                  {canManageAlerts && <th scope="col">Actions</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {alertPage.items.map((alert) => {
-                  const actionInProgress = actionAlertId !== null || Boolean(pendingResolution);
-                  return (
-                    <tr key={alert.alertId}>
-                      <td>{alert.systemName}</td>
-                      <td>
-                        <strong>{formatLabel(alert.alertType)}</strong>
-                        <span className="cell-detail">{alert.message}</span>
-                        {assistant && <button type="button" className="ask-ai-inline" aria-label={`Ask AI about ${alert.systemName} alert ${alert.alertId}`} onClick={() => assistant.ask({ systemId: alert.systemId, systemName: alert.systemName, alertId: alert.alertId, status: statusFilter }, "Explain this alert and suggest what to check next.")}>Ask AI <span aria-hidden="true">↗</span></button>}
-                      </td>
-                      <td>
-                        <span
-                          className={`data-badge severity-${alert.severity.toLowerCase()}`}
-                        >
-                          {formatLabel(alert.severity)}
-                        </span>
-                      </td>
-                      <td>
-                        <span
-                          className={`data-badge alert-status-${alert.status.toLowerCase()}`}
-                        >
-                          {formatLabel(alert.status)}
-                        </span>
-                        {pendingResolution?.alert.alertId === alert.alertId && <span className="cell-detail">{pendingResolution.sending ? "Saving resolution…" : "Resolution scheduled · Undo available"}</span>}
-                      </td>
-                      <td>{new Date(alert.createdTime).toLocaleString()}</td>
-                      {canManageAlerts && (
-                        <td>
-                          <div className="row-actions">
-                            {alert.status === "ACTIVE" && (
-                              <button
-                                className="button-secondary button-small"
-                                type="button"
-                                onClick={() => updateAlert(alert, "acknowledge")}
-                                disabled={actionInProgress}
-                              >
-                                Acknowledge
-                              </button>
-                            )}
-                            {alert.status !== "RESOLVED" && (
-                              <button
-                                className="button-small"
-                                type="button"
-                                onClick={() => onResolveRequested ? onResolveRequested(alert) : updateAlert(alert, "resolve")}
-                                disabled={actionInProgress}
-                              >
-                                Resolve
-                              </button>
-                            )}
-                            {alert.status === "RESOLVED" && (
-                              <span className="cell-detail">No action required</span>
-                            )}
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+    <div className="alert-board" aria-label="Alerts by status" aria-busy={isLoading}>
+      {COLUMNS.map(column => {
+        const items = ordered.filter(alert => alert.status === column.status);
+        return <section key={column.status} className={`alert-column alert-column--${column.status.toLowerCase()}`} aria-labelledby={`alert-column-${column.status}`}>
+          <header className="alert-column-heading"><div><span className="alert-column-dot" aria-hidden="true" /><h3 id={`alert-column-${column.status}`}>{column.label}</h3></div><span className="alert-column-count" aria-label={`${items.length} ${column.label.toLowerCase()} alerts`}>{isLoading && !loaded ? "—" : items.length}</span></header>
+          <p className="alert-column-description">{column.description}</p>
+          <div className="alert-column-items" role="region" aria-label={`${column.label} alerts`} tabIndex={0}>
+            {items.map(alert => <article key={alert.alertId} className="alert-card" aria-label={`${alert.systemName} ${formatLabel(alert.alertType)} alert #${alert.alertId}`}>
+              <div className="alert-card-meta"><span className={`data-badge severity-${alert.severity.toLowerCase()}`}>{formatLabel(alert.severity)}</span><span>#{alert.alertId}</span></div>
+              <h4>{formatLabel(alert.alertType)}</h4><p className="alert-card-system"><Icon name="system" />{alert.systemName}</p>
+              <p className="alert-card-message">{alert.message}</p>
+              <time className="alert-card-time" dateTime={alert.createdTime}><Icon name="response" />{new Date(alert.createdTime).toLocaleString()}</time>
+              {pendingResolution?.alert.alertId === alert.alertId && <p className="alert-card-pending" role="status">{pendingResolution.sending ? "Saving resolution…" : "Resolution scheduled · Undo available"}</p>}
+              <footer className="alert-card-footer">
+                {assistant && <button type="button" className="ask-ai-inline" aria-label={`Ask AI about ${alert.systemName} alert ${alert.alertId}`} onClick={() => assistant.ask({ systemId: alert.systemId, systemName: alert.systemName, alertId: alert.alertId, status: "ALL" }, "Explain this alert and suggest what to check next.")}>Ask AI <span aria-hidden="true">↗</span></button>}
+                {canManageAlerts && <div className="row-actions">
+                  {alert.status === "ACTIVE" && <button type="button" className="button-secondary button-small" disabled={actionInProgress} onClick={() => updateAlert(alert, "acknowledge")}>{actionAlertId === alert.alertId ? "Saving…" : "Acknowledge"}</button>}
+                  {alert.status !== "RESOLVED" && <button type="button" className="button-small" disabled={actionInProgress} onClick={() => onResolveRequested ? onResolveRequested(alert) : updateAlert(alert, "resolve")}>Resolve</button>}
+                  {alert.status === "RESOLVED" && <span className="alert-card-complete"><Icon name="check" />No action required</span>}
+                </div>}
+              </footer>
+            </article>)}
+            {!items.length && <p className="alert-column-empty">{isLoading && !loaded ? "Loading alerts…" : !loaded && error ? "Alerts could not be loaded." : keyword ? "No matching alerts in this column." : `No ${column.label.toLowerCase()} alerts.`}</p>}
           </div>
-
-          <nav className="pagination" aria-label="Alert pages">
-            <button
-              className="button-secondary"
-              type="button"
-              onClick={() => loadAlerts(alertPage.page - 1)}
-              disabled={alertPage.first || isLoading}
-            >
-              Previous
-            </button>
-            <span>
-              Page {alertPage.page + 1} of {alertPage.totalPages} ·{" "}
-              {alertPage.totalElements} alerts
-            </span>
-            <button
-              className="button-secondary"
-              type="button"
-              onClick={() => loadAlerts(alertPage.page + 1)}
-              disabled={alertPage.last || isLoading}
-            >
-              Next
-            </button>
-          </nav>
-        </>
-      )}
-    </section>
-  );
+        </section>;
+      })}
+    </div>
+  </section>;
 }
-
-export default AlertCenter;

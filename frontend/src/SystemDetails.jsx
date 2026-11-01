@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { apiJson } from "./api";
 import { MetricTrend } from "./Charts";
-import { formatMetric, formatTime, readingUpdateLabel } from "./metricDisplay";
+import { formatMetric, formatTime, readingUpdateLabel, systemHealthDisplay } from "./metricDisplay";
 import MetricForm from "./MetricForm";
 import { useModalNavigation } from "./Modal";
 
@@ -55,6 +55,7 @@ export default function SystemDetails({system,currentUser,onSessionExpired,onMet
     ...(details?.statusReasons || []).map(reason => reason === "Latest metric data is stale" ? outdatedNote : reason === "No metric data is available" ? noReadingsNote : reason),
   ])];
   if(!system)return null;
+  const health = details ? systemHealthDisplay(details) : null;
   return <section className="system-details"><h2 className="visually-hidden">System Details</h2>
     <div className="detail-tabs" role="tablist" aria-label="System detail sections">{tabs.map(([id,label],i)=><button key={id} type="button" role="tab" ref={node=>{tabRefs.current[i]=node;}}
       id={`detail-tab-${id}`} aria-controls={`detail-panel-${id}`} aria-selected={tab===id} tabIndex={tab===id?0:-1} disabled={id==="submit"&&!allowed}
@@ -62,7 +63,7 @@ export default function SystemDetails({system,currentUser,onSessionExpired,onMet
     {feedback&&<p role="status" className="success-message">{feedback}</p>}
     {error?<><p role="alert" className="error-message">{error}</p><button onClick={()=>setReload(value=>value+1)}>Retry system details</button></>:
       !details?<p>Loading system details...</p>:<div role="tabpanel" id={`detail-panel-${tab}`} aria-labelledby={`detail-tab-${tab}`} tabIndex={0} className="detail-tabpanel">
-        {tab==="basic"&&<><div className="detail-card-header"><h3>{details.name}</h3><span className={`system-status status-${details.status.toLowerCase()}`}>{details.status}</span></div>
+        {tab==="basic"&&<><div className="detail-card-header"><h3>{details.name}</h3><span className={`system-status ${health.className}`}>{health.label}</span></div>
           <dl className="basic-detail-grid">{[["Type",details.type],["Host",details.host],["Reading updates",readingUpdateLabel(details.metricDataStatus)],["Last measured",formatTime(details.latestMetric?.timestamp)],
             ["CPU",formatMetric(details.latestMetric?.cpuUsage,"%")],["Memory",formatMetric(details.latestMetric?.memoryUsage,"%")],["Response time",formatMetric(details.latestMetric?.responseTime," ms")],
             ["Availability",details.latestMetric?details.latestMetric.availability?"Available":"Unavailable":"No data"]].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>

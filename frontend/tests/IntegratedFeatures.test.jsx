@@ -16,11 +16,17 @@ const system = { id: 1, name: "Integrated API", type: "SERVICE", host: "integrat
 const emptyAlerts = paged([], { size: 5 });
 
 test("paged systems retain real zeros, missing metrics and management read-only access", async () => {
+  const measured = { ...system, id: 2, name: "Measured zero API", metricDataStatus: "FRESH", latestMetric: { cpuUsage: 0, memoryUsage: 0, responseTime: 0, availability: true } };
   const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(url => Promise.resolve(reply(
-    url === "/api/dashboard/summary" ? summary : url.startsWith("/api/systems/page") ? paged([system]) : emptyAlerts)));
+    url === "/api/dashboard/summary" ? summary : url.startsWith("/api/systems/page") ? paged([system, measured]) : emptyAlerts)));
   render(<><Dashboard /><SystemsPage currentUser={{ role: "MANAGEMENT" }} /></>);
   const row = await screen.findByRole("button", { name: /Integrated API.*SERVICE/ });
-  expect(within(row).getAllByText("No data")).toHaveLength(3);
+  expect(within(row).getAllByText("No data")).toHaveLength(4);
+  expect(within(row).getByText("No data", { selector: ".system-status" })).toHaveClass("status-no-data");
+  expect(row).not.toHaveAccessibleName(/HEALTHY/);
+  const measuredCard = screen.getByRole("button", { name: /Measured zero API.*HEALTHY/ });
+  expect(within(measuredCard).getByText("HEALTHY")).toHaveClass("status-healthy");
+  expect(within(measuredCard).queryByText("No data")).not.toBeInTheDocument();
   expect(within(row).getByText("No measurement")).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Average CPU" }).closest("article")).toHaveTextContent("0%");
   expect(screen.getByRole("heading", { name: "Average memory" }).closest("article")).toHaveTextContent("No data");
@@ -56,7 +62,7 @@ test("successful alert mutation preserves feedback and the overview loads the cu
   await waitFor(() => expect(window.location.hash).toBe("#alerts"));
   fireEvent.click(await screen.findByRole("button", { name: "Acknowledge" }));
   expect(await screen.findByText(/alert acknowledged successfully/)).toBeInTheDocument();
-  expect(screen.getByLabelText("Status")).toHaveValue("ALL");
+  expect(screen.getByRole("region", { name: "Active alerts" })).toBeInTheDocument();
   fireEvent.click(screen.getByRole("link", { name: "Dashboard" }));
   await waitFor(() => expect(window.location.hash).toBe("#dashboard"));
   await waitFor(() => expect(screen.getByRole("heading", { name: "Active alerts" }).closest("article")).toHaveTextContent("0"));

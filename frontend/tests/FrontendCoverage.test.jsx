@@ -56,21 +56,23 @@ describe("Authentication and session boundaries", () => {
 });
 
 describe("Alert permissions and error handling", () => {
-  test("starts with ALL filter and disables both boundaries on a single page", async () => {
+  test("shows all state columns with no page navigation or state dropdown", async () => {
     const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(response(page([alert])));
     render(<AlertCenter currentUser={operations} />);
     await screen.findByText("Test API");
-    expect(screen.getByLabelText("Status")).toHaveValue("ALL");
-    expect(fetch.mock.calls[0][0]).toBe("/api/alerts?page=0&size=5");
-    expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+    for (const name of ["Active alerts", "Acknowledged alerts", "Resolved alerts"]) expect(screen.getByRole("region", { name })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Status")).not.toBeInTheDocument();
+    expect(fetch.mock.calls[0][0]).toBe("/api/alerts?page=0&size=100");
+    expect(screen.queryByRole("button", { name: "Previous" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Next" })).not.toBeInTheDocument();
   });
-  test("ALL filter omits the status parameter", async () => {
+  test("refresh retrieves all statuses without a hidden system filter", async () => {
     const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(response(page([alert])));
     render(<AlertCenter currentUser={operations} />);
     await screen.findByText("Test API");
-    fireEvent.change(screen.getByLabelText("Status"), { target: { value: "ALL" } });
-    await waitFor(() => expect(fetch).toHaveBeenLastCalledWith("/api/alerts?page=0&size=5", expect.anything()));
+    fireEvent.click(screen.getByRole("button", { name: "Refresh alerts" }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    expect(fetch).toHaveBeenLastCalledWith("/api/alerts?page=0&size=100", expect.anything());
   });
   test("resolved alerts have no further action buttons", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(response(page([{ ...alert, status: "RESOLVED" }])));
@@ -118,16 +120,15 @@ describe("Alert permissions and error handling", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Resolve" }));
     await waitFor(() => expect(onSessionExpired).toHaveBeenCalledOnce());
   });
-  test("filter changes reset pagination to the first page", async () => {
-    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(response(page([alert], { totalPages: 2, totalElements: 6, last: false })))
-      .mockResolvedValueOnce(response(page([alert], { page: 1, first: false, totalPages: 2, totalElements: 6 })))
-      .mockResolvedValueOnce(response(page([])));
+  test("refresh replaces state-column results after external alert changes", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(response(page([alert])))
+      .mockResolvedValueOnce(response(page([{ ...alert, status: "RESOLVED", systemName: "Recovered API" }])));
     render(<AlertCenter currentUser={operations} />);
     await screen.findByText("Test API");
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    await screen.findByText(/Page 2 of 2/);
-    fireEvent.change(screen.getByLabelText("Status"), { target: { value: "RESOLVED" } });
-    await waitFor(() => expect(fetch).toHaveBeenLastCalledWith("/api/alerts?page=0&size=5&status=RESOLVED", expect.anything()));
+    fireEvent.click(screen.getByRole("button", { name: "Refresh alerts" }));
+    await screen.findByText("Recovered API");
+    expect(screen.queryByText("Test API")).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Resolved alerts" })).toHaveTextContent("Recovered API");
   });
 });
 
@@ -166,7 +167,7 @@ describe("Data display and accessible navigation", () => {
     expect(screen.getByText("No recorded metrics to chart yet.")).toBeInTheDocument();
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
   });
-  test("primary navigation opens alert filters and returns to the dashboard", async () => {
+  test("primary navigation opens the alert board and returns to the dashboard", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(url => Promise.resolve(response(
       url === "/api/auth/me" ? { username: "qa.manager", role: "MANAGEMENT" } :
       url === "/api/health" ? { status: "UP", service: "test", timestamp: "2026-10-18T00:00:00Z" } :
@@ -175,7 +176,7 @@ describe("Data display and accessible navigation", () => {
     fireEvent.click(await screen.findByRole("link", { name: "Alert Center" }));
   await waitFor(() => expect(window.location.hash).toBe("#alerts"));
     expect(await screen.findByRole("heading", { name: "Alert Center", level: 2 })).toBeInTheDocument();
-    expect(screen.getByLabelText("Status")).toHaveValue("ALL");
+    expect(screen.getByRole("region", { name: "Active alerts" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Alert Center" })).toHaveAttribute("aria-current", "page");
     fireEvent.click(screen.getByRole("link", { name: "Dashboard" }));
   await waitFor(() => expect(window.location.hash).toBe("#dashboard"));
